@@ -1,0 +1,4 @@
+(library
+  (name fast_bitvector)
+  (libraries ocaml_intrinsics)
+  )
