@@ -28,7 +28,6 @@ let create ~length =
   set_int64 t 0 (Int64.of_int length);
   t
 
-
 external (&&&) : bool -> bool -> bool = "%andint"
 
 module type Check = sig
@@ -135,16 +134,16 @@ module [@inline always] Ops(Check : Check) = struct
         )
       ~final:(fun ~mask a -> Int64.logand mask a)
 
-  let not a ~result =
+  let not ~result a =
     logop1 ~f:Int64.lognot a result
 
-  let (land) a b ~result =
+  let and_ ~result a b =
     logop2 ~f:Int64.logand a b result
 
-  let (lor) a b ~result =
+  let or_ ~result a b =
     logop2 ~f:Int64.logor a b result
 
-  let (lxor) a b ~result =
+  let xor ~result a b =
     logop2 ~f:Int64.logxor a b result
 
 end
@@ -154,6 +153,29 @@ module Unsafe = Ops(struct
     let length2 a _ = length a
     let length3 a _ _ = length a
   end)
+
+include Ops(struct
+    let index t i = assert (0 <= i && i < length t)
+
+    let length2 a b =
+      let la = length a in
+      let lb = length b in
+      assert (la = lb);
+      la
+
+    let length3 a b c =
+      let la = length a in
+      let lb = length b in
+      let lc = length c in
+      assert (la = lb);
+      assert (la = lc);
+      la
+    end)
+
+let equal a b =
+  let la = length a in
+  let lb = length b in
+  la = lb && Unsafe.equal a b
 
 let init length ~f =
   let t = create ~length in

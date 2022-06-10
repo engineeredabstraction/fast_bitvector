@@ -5,21 +5,23 @@ val max_length : int
 
 val create : length:int -> t
 
-
 module type Ops := 
   sig
+    type 'a with_result := result:t -> 'a
     val set : t -> int -> unit
     val clear : t -> int -> unit
 
     val equal : t -> t -> bool
 
-    val not : t -> result:t -> t
-    val (land) : t -> t -> result:t -> t
-    val (lor) : t -> t -> result:t -> t
-    val (lxor) : t -> t -> result:t -> t
+    val not : (t -> t) with_result
+    val and_ : (t -> t -> t) with_result
+    val or_ : (t -> t -> t) with_result
+    val xor : (t -> t -> t) with_result
   end
 
 module Unsafe : Ops
+
+include Ops
 
 val copy : t -> t
 val append : t -> t -> t
