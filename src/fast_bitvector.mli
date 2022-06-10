@@ -23,7 +23,12 @@ module Unsafe : Ops
 
 include Ops
 
+val to_string : t -> string
+val of_string : string -> t
+
 val copy : t -> t
 val append : t -> t -> t
 val fold : init:'a -> f:('a -> bool -> 'a) -> t -> 'a
 val map : t -> f:(bool -> bool) -> t
+
+val popcount : t -> int

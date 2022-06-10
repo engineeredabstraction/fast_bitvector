@@ -37,6 +37,29 @@ module type Check = sig
   val length3 : t -> t -> t -> int
 end
 
+let [@inline always] foldop1 ~init ~f ~final a =
+  let length = length a in
+  let total_words = total_words ~length in
+  let acc = ref init in
+  for i = 1 to pred total_words do
+    acc :=
+      (f [@inlined hint])
+        !acc
+        (get_int64 a i)
+  done;
+  let remaining = length land 63 in
+  let mask = Int64.sub (Int64.shift_left 1L remaining) 1L in
+  (f [@inlined hint])
+    !acc
+    (final ~mask (get_int64 a total_words))
+
+let popcount t =
+  foldop1 t 
+    ~init:0
+    ~f:(fun acc v -> acc + (Ocaml_intrinsics.Int64.count_set_bits v))
+    ~final:(fun ~mask a -> Int64.logand mask a)
+    
+
 module [@inline always] Ops(Check : Check) = struct
   let [@inline always] logop1 ~f a result =
     let length = Check.length2 a result in
@@ -216,3 +239,23 @@ let [@inline always] fold ~init ~f t =
 let map t ~f =
   (init [@inlined always]) (length t)
     ~f:(fun i -> f (Unsafe.get t i))
+
+let to_string t =
+  let length = length t in
+  (String.init [@inlined hint]) length (fun i ->
+      if Unsafe.get t i
+      then '1'
+      else '0'
+    )
+
+let of_string s =
+  let length = String.length s in
+  init length
+    ~f:(fun i ->
+        match String.unsafe_get s i with
+        | '0' -> false
+        | '1' -> true
+        | _other ->
+          failwith "invalid char"
+      )
+
