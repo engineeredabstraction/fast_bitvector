@@ -108,7 +108,7 @@ module [@inline always] Ops(Check : Check) = struct
     let subindex = i land 63 in
     let v = get_int64 t index in
     Int64.logand
-      (Int64.shift_right v subindex)
+      (Int64.shift_right_logical v subindex)
       1L
     |> Int64.to_int
     |> (Obj.magic : int -> bool)
@@ -129,7 +129,7 @@ module [@inline always] Ops(Check : Check) = struct
     Check.index t index;
     let subindex = i land 63 in
     let v = get_int64 t index in
-    let mask = Int64.lognot (Int64.shift_right v subindex) in
+    let mask = Int64.lognot (Int64.shift_right_logical v subindex) in
     let v' =
       Int64.logor
         (Int64.logand v mask)
