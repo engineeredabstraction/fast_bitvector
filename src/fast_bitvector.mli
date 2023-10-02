@@ -26,6 +26,8 @@ include Ops
 val to_string : t -> string
 val of_string : string -> t
 
+val length : t -> int
+
 val copy : t -> t
 val append : t -> t -> t
 val fold : init:'a -> f:('a -> bool -> 'a) -> t -> 'a
