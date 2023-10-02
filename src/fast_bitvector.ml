@@ -5,6 +5,9 @@ type t = Bytes.t
 external get_int64 : bytes -> int -> int64 = "%caml_bytes_get64u"
 external set_int64 : bytes -> int -> int64 -> unit = "%caml_bytes_set64u"
 
+let set_int64 b i v = set_int64 b (i*8) v
+let get_int64 b i = get_int64 b (i*8)
+
 let length t =
   get_int64 t 0
   |> Int64.to_int
@@ -21,11 +24,12 @@ let total_words ~length =
 
 let word_size_bytes = word_size / 8
 
-let create ~length =
-  let total_data_words = (length + word_size - 1) / word_size in
+let create ~length:new_length =
+  let total_data_words = (new_length + word_size - 1) / word_size in
   let total_words = total_data_words + 1 in
-  let t = Bytes.create (total_words * word_size_bytes) in
-  set_int64 t 0 (Int64.of_int length);
+  let t = Bytes.init (total_words * word_size_bytes) (fun _ -> '\x00') in
+  set_int64 t 0 (Int64.of_int new_length);
+  assert (length t == new_length);
   t
 
 external (&&&) : bool -> bool -> bool = "%andint"
@@ -103,8 +107,8 @@ module [@inline always] Ops(Check : Check) = struct
       (final ~mask (get_int64 b total_words))
 
   let [@inline always] get t i =
+    Check.index t i;
     let index = 1 + (i lsr 6) in
-    Check.index t index;
     let subindex = i land 63 in
     let v = get_int64 t index in
     Int64.logand
@@ -114,8 +118,8 @@ module [@inline always] Ops(Check : Check) = struct
     |> (Obj.magic : int -> bool)
 
   let [@inline always] set t i =
+    Check.index t i;
     let index = 1 + (i lsr 6) in
-    Check.index t index;
     let subindex = i land 63 in
     let v = get_int64 t index in
     let v' =
@@ -124,9 +128,9 @@ module [@inline always] Ops(Check : Check) = struct
     set_int64 t index v'
 
   let [@inline always] set_to t i b =
+    Check.index t i;
     let b = Int64.of_int ((Obj.magic : bool -> int) b) in
     let index = 1 + (i lsr 6) in
-    Check.index t index;
     let subindex = i land 63 in
     let v = get_int64 t index in
     let mask = Int64.lognot (Int64.shift_right_logical v subindex) in
@@ -138,8 +142,8 @@ module [@inline always] Ops(Check : Check) = struct
     set_int64 t index v'
 
   let [@inline always] clear t i =
+    Check.index t i;
     let index = 1 + (i lsr 6) in
-    Check.index t index;
     let subindex = i land 63 in
     let v = get_int64 t index in
     let v' =
@@ -200,10 +204,10 @@ let equal a b =
   let lb = length b in
   la = lb && Unsafe.equal a b
 
-let init length ~f =
-  let t = create ~length in
-  for i = 0 to length - 1 do
-    Unsafe.set_to t i ((f [@inlined hint]) i)
+let init new_length ~f =
+  let t = create ~length:new_length in
+  for i = 0 to new_length - 1 do
+    Unsafe.set_to t i ((f [@inlined hint]) i);
   done;
   t
 
@@ -240,22 +244,52 @@ let map t ~f =
   (init [@inlined always]) (length t)
     ~f:(fun i -> f (Unsafe.get t i))
 
-let to_string t =
-  let length = length t in
-  (String.init [@inlined hint]) length (fun i ->
-      if Unsafe.get t i
-      then '1'
-      else '0'
-    )
-
-let of_string s =
-  let length = String.length s in
-  init length
-    ~f:(fun i ->
-        match String.unsafe_get s i with
-        | '0' -> false
-        | '1' -> true
-        | _other ->
-          failwith "invalid char"
+module Big_endian = struct
+  let to_string t =
+    let length = length t in
+    (String.init [@inlined hint]) length (fun i ->
+        if Unsafe.get t i
+        then '1'
+        else '0'
       )
 
+  let of_string s =
+    let length = String.length s in
+    init length
+      ~f:(fun i ->
+          match String.unsafe_get s i with
+          | '0' -> false
+          | '1' -> true
+          | _other ->
+            failwith "invalid char"
+        )
+end
+
+module Little_endian = struct
+  let to_string t =
+    let length = length t in
+    (String.init [@inlined hint]) length (fun i ->
+        if Unsafe.get t (length - (i + 1))
+        then '1'
+        else '0'
+      )
+
+  let of_string s =
+    let length = String.length s in
+    let result =
+      init length
+        ~f:(fun i ->
+            match String.get s (length - (i + 1)) with
+            | '0' -> false
+            | '1' -> true
+            | _other ->
+              failwith "invalid char"
+          )
+    in
+    result
+end
+
+open Sexplib0.Sexp_conv
+
+let sexp_of_t t = [%sexp_of: string] (Little_endian.to_string t)
+let t_of_sexp sexp = Little_endian.of_string ([%of_sexp: string] sexp)
