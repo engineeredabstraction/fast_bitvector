@@ -2,6 +2,8 @@
 
 type t = Bytes.t
 
+let failwithf = Printf.ksprintf failwith
+
 external get_int64 : bytes -> int -> int64 = "%caml_bytes_get64u"
 external set_int64 : bytes -> int -> int64 -> unit = "%caml_bytes_set64u"
 
@@ -260,8 +262,8 @@ module Big_endian = struct
           match String.unsafe_get s i with
           | '0' -> false
           | '1' -> true
-          | _other ->
-            failwith "invalid char"
+          | other ->
+            failwithf "invalid char '%c'" other
         )
 end
 
@@ -282,8 +284,8 @@ module Little_endian = struct
             match String.get s (length - (i + 1)) with
             | '0' -> false
             | '1' -> true
-            | _other ->
-              failwith "invalid char"
+            | other ->
+              failwithf "invalid char '%c'" other
           )
     in
     result
