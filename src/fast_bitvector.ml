@@ -243,7 +243,7 @@ let [@inline always] fold ~init ~f t =
   !acc
 
 let map t ~f =
-  (init [@inlined always]) (length t)
+  (init [@inlined hint]) (length t)
     ~f:(fun i -> f (Unsafe.get t i))
 
 module Big_endian = struct
