@@ -12,6 +12,8 @@ module type Ops :=
     val clear : t -> int -> unit
     val set_to : t -> int -> bool -> unit
 
+    val get : t -> int -> bool
+
     val equal : t -> t -> bool
 
     val not : (t -> t) with_result
