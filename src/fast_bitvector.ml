@@ -255,6 +255,10 @@ let init new_length ~f =
   done;
   t
 
+let create_full ~length =
+  let t = create ~length in
+  Unsafe.not ~result:t t
+
 let copy t =
   Bytes.copy t
 
