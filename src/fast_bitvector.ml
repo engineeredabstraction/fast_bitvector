@@ -262,7 +262,11 @@ let map t ~f =
   (init [@inlined hint]) (length t)
     ~f:(fun i -> f (Unsafe.get t i))
 
-module Big_endian = struct
+open Sexplib0
+
+module Big_endian' = struct
+  type nonrec t = t
+
   let to_string t =
     let length = length t in
     (String.init [@inlined hint]) length (fun i ->
@@ -281,9 +285,17 @@ module Big_endian = struct
           | other ->
             failwithf "invalid char '%c'" other
         )
+
+  let sexp_of_t t =
+    Sexp.List
+      [ Sexp.Atom "BE"
+      ; Sexp.Atom (to_string t)
+      ]
 end
 
-module Little_endian = struct
+module Little_endian' = struct
+  type nonrec t = t
+
   let to_string t =
     let length = length t in
     (String.init [@inlined hint]) length (fun i ->
@@ -305,9 +317,38 @@ module Little_endian = struct
           )
     in
     result
+
+  let sexp_of_t t =
+    Sexp.List
+      [ Sexp.Atom "LE"
+      ; Sexp.Atom (to_string t)
+      ]
 end
 
-open Sexplib0.Sexp_conv
+let t_of_sexp = function
+  | Sexp.List
+      [ Sexp.Atom "BE"
+      ; Sexp.Atom s
+      ] -> Big_endian'.of_string s
+  | Sexp.List
+      [ Sexp.Atom "LE"
+      ; Sexp.Atom s
+      ]
+  | Sexp.Atom s ->
+    Little_endian'.of_string s
+  | other ->
+    Sexp_conv.of_sexp_error "not a bitvector" other
 
-let sexp_of_t t = [%sexp_of: string] (Little_endian.to_string t)
-let t_of_sexp sexp = Little_endian.of_string ([%of_sexp: string] sexp)
+let sexp_of_t = Little_endian'.sexp_of_t
+
+module Big_endian = struct
+  include Big_endian'
+
+  let t_of_sexp = t_of_sexp
+end
+
+module Little_endian = struct
+  include Little_endian'
+
+  let t_of_sexp = t_of_sexp
+end
