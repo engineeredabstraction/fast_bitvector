@@ -54,4 +54,16 @@ let%expect_test "Basic" =
      ("Fast_bitvector.is_full a"  true)
      ("Fast_bitvector.is_full b"  false))
     |}];
+  Fast_bitvector.set_to a 0 false;
+  Fast_bitvector.set_to b 0 true;
+  print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
+  [%expect {|
+    ((a (
+       LE
+       1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111110))
+     (b (
+       LE
+       0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001)))
+    |}];
+
   ()

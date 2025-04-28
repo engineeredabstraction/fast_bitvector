@@ -164,7 +164,7 @@ module [@inline always] Ops(Check : Check) = struct
     let index = 1 + (i lsr 6) in
     let subindex = i land 63 in
     let v = get_int64 t index in
-    let mask = Int64.lognot (Int64.shift_right_logical v subindex) in
+    let mask = Int64.lognot (Int64.shift_left Int64.one subindex) in
     let v' =
       Int64.logor
         (Int64.logand v mask)

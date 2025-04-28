@@ -6,6 +6,7 @@
 - add `is_empty` and `is_full`
 - add set operations
 - add `create_full`
+- fix `set_to`
 
 ## 0.0.2
 - Initial release
