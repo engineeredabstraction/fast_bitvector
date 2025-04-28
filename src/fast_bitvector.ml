@@ -36,6 +36,20 @@ let create ~length:new_length =
   assert (length t == new_length);
   t
 
+let [@inline always] loop_set result value =
+  let length = length result in
+  let total_words = total_words ~length in
+  for i = 1 to total_words do
+    set_int64 result i
+      value
+  done
+
+let set_all t =
+  loop_set t Int64.minus_one
+
+let clear_all t =
+  loop_set t Int64.zero
+
 external (&&&) : bool -> bool -> bool = "%andint"
 
 module type Check = sig

@@ -49,3 +49,6 @@ val fold : init:'a -> f:('a -> bool -> 'a) -> t -> 'a
 val map : t -> f:(bool -> bool) -> t
 
 val popcount : t -> int
+
+val set_all : t -> unit
+val clear_all : t -> unit
