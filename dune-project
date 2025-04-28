@@ -13,9 +13,14 @@
 (license MPL-2.0)
 
 (package
- (name fast_bitvector)
- (synopsis "A bitvector library")
- (description "Bitvector represented as bytes internally")
- (depends (ocaml (>= 5.1.0)) ocaml_intrinsics ppx_sexp_conv ppx_sexp_value)
- (tags
-  (bitvector bitset)))
+  (name     fast_bitvector)
+  (synopsis "A bitvector library")
+  (description "Bitvector represented as bytes internally")
+  (depends
+    (ocaml (>= 5.1.0))
+    ocaml_intrinsics
+    ppx_sexp_conv
+    ppx_sexp_value
+    (expect_test_helpers_core :with-test)
+    (ppx_jane :with-test))
+  (tags (bitvector bitset)))
