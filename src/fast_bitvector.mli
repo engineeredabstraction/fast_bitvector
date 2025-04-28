@@ -1,5 +1,5 @@
 
-type t
+type t [@@deriving sexp]
 
 val max_length : int
 
@@ -10,6 +10,9 @@ module type Ops :=
     type 'a with_result := result:t -> 'a
     val set : t -> int -> unit
     val clear : t -> int -> unit
+    val set_to : t -> int -> bool -> unit
+
+    val get : t -> int -> bool
 
     val equal : t -> t -> bool
 
@@ -23,8 +26,19 @@ module Unsafe : Ops
 
 include Ops
 
-val to_string : t -> string
-val of_string : string -> t
+(* Bit 0 first *)
+module Big_endian : sig
+  val to_string : t -> string
+  val of_string : string -> t
+end
+
+(* Bit 0 last *)
+module Little_endian : sig
+  val to_string : t -> string
+  val of_string : string -> t
+end
+
+val length : t -> int
 
 val copy : t -> t
 val append : t -> t -> t
