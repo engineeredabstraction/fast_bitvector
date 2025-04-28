@@ -1,4 +1,6 @@
-
+(* SPDX-License-Identifier: MPL-2.0
+ * SPDX-FileCopyrightText: (c) 2025 Stefan Muenzel
+ *)
 
 type t = Bytes.t
 
