@@ -1,4 +1,7 @@
 
+## 0.0.3.1
+- use ocaml_intrinsics_kernel
+
 ## 0.0.3
 - add `set_all` and `clear_all`
 - add basic testing

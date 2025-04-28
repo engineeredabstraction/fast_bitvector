@@ -18,7 +18,7 @@
   (description "Bitvector represented as bytes internally")
   (depends
     (ocaml (>= 5.1.0))
-    ocaml_intrinsics
+    ocaml_intrinsics_kernel
     ppx_sexp_conv
     ppx_sexp_value
     (expect_test_helpers_core :with-test)

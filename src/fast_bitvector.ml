@@ -73,7 +73,7 @@ let [@inline always] foldop1 ~init ~f ~final a =
 let popcount t =
   foldop1 t 
     ~init:0
-    ~f:(fun acc v -> acc + (Ocaml_intrinsics.Int64.count_set_bits v))
+    ~f:(fun acc v -> acc + (Ocaml_intrinsics_kernel.Int64.count_set_bits v))
     ~final:(fun ~mask a -> Int64.logand mask a)
 
 let is_empty t =
