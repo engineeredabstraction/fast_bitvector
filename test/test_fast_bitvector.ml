@@ -38,13 +38,20 @@ let%expect_test "Basic" =
     |}];
   Fast_bitvector.set_all a;
   Fast_bitvector.clear_all b;
-  print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
+  print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)
+      (Fast_bitvector.is_empty a : bool) (Fast_bitvector.is_empty b : bool)
+      (Fast_bitvector.is_full a : bool) (Fast_bitvector.is_full b : bool)
+  ];
   [%expect {|
     ((a (
        LE
        1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111))
      (b (
        LE
-       0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000)))
+       0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
+     ("Fast_bitvector.is_empty a" false)
+     ("Fast_bitvector.is_empty b" true)
+     ("Fast_bitvector.is_full a"  true)
+     ("Fast_bitvector.is_full b"  false))
     |}];
   ()

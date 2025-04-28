@@ -52,13 +52,6 @@ let clear_all t =
 
 external (&&&) : bool -> bool -> bool = "%andint"
 
-module type Check = sig
-  val index : t -> int -> unit
-
-  val length2 : t -> t -> int
-  val length3 : t -> t -> t -> int
-end
-
 let [@inline always] foldop1 ~init ~f ~final a =
   let length = length a in
   let total_words = total_words ~length in
@@ -80,7 +73,25 @@ let popcount t =
     ~init:0
     ~f:(fun acc v -> acc + (Ocaml_intrinsics.Int64.count_set_bits v))
     ~final:(fun ~mask a -> Int64.logand mask a)
+
+let is_empty t =
+  foldop1 t
+    ~init:true
+    ~f:(fun acc v -> acc &&& (v = Int64.zero))
+    ~final:(fun ~mask a -> Int64.logand mask a)
+
+let is_full t =
+  foldop1 t
+    ~init:true
+    ~f:(fun acc v -> acc &&& (v = Int64.minus_one))
+    ~final:(fun ~mask a -> Int64.logor (Int64.lognot mask) a)
     
+module type Check = sig
+  val index : t -> int -> unit
+
+  val length2 : t -> t -> int
+  val length3 : t -> t -> t -> int
+end
 
 module [@inline always] Ops(Check : Check) = struct
   let [@inline always] logop1 ~f a result =
@@ -190,6 +201,19 @@ module [@inline always] Ops(Check : Check) = struct
 
   let xor ~result a b =
     logop2 ~f:Int64.logxor a b result
+
+  module Set = struct
+    let mem = get
+
+    let intersect = and_
+    let complement = not
+    let symmetric_difference = xor
+
+    let difference ~result a b =
+      logop2 ~f:(fun a b ->
+          Int64.logand a (Int64.lognot b)
+        ) a b result
+  end
 
 end
 

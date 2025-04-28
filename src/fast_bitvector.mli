@@ -23,6 +23,14 @@ module type Ops :=
     val and_ : (t -> t -> t) with_result
     val or_ : (t -> t -> t) with_result
     val xor : (t -> t -> t) with_result
+
+    module Set : sig
+      val mem : t -> int -> bool
+      val intersect : (t -> t -> t) with_result
+      val complement : (t -> t) with_result
+      val symmetric_difference : (t -> t -> t) with_result
+      val difference : (t -> t -> t) with_result
+    end
   end
 
 module Unsafe : Ops
@@ -54,3 +62,7 @@ val popcount : t -> int
 
 val set_all : t -> unit
 val clear_all : t -> unit
+
+val is_empty : t -> bool
+val is_full : t -> bool
+
