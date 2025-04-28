@@ -4,7 +4,7 @@
 
 type t = Bytes.t
 
-let failwithf = Printf.ksprintf failwith
+let failwithf s = Printf.ksprintf failwith s
 
 external get_int64 : bytes -> int -> int64 = "%caml_bytes_get64u"
 external set_int64 : bytes -> int -> int64 -> unit = "%caml_bytes_set64u"
@@ -21,7 +21,7 @@ let word_size =
   Sys.word_size
 
 let max_length =
-  Sys.word_size * (Sys.max_string_length - 1)
+  (Sys.max_string_length*8) - word_size
 
 let total_words ~length =
   (length + word_size - 1) lsr 6
@@ -29,6 +29,8 @@ let total_words ~length =
 let word_size_bytes = word_size / 8
 
 let create ~length:new_length =
+  if new_length > max_length
+  then failwithf "length %d exceeds maximum length %d" new_length max_length;
   let total_data_words = (new_length + word_size - 1) / word_size in
   let total_words = total_data_words + 1 in
   let t = Bytes.init (total_words * word_size_bytes) (fun _ -> '\x00') in
