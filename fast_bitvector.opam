@@ -13,6 +13,7 @@ depends: [
   "ocaml" {>= "5.1.0"}
   "ocaml_intrinsics"
   "ppx_sexp_conv"
+  "ppx_sexp_value"
   "odoc" {with-doc}
 ]
 build: [
