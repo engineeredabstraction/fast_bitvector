@@ -1,5 +1,5 @@
 
-## Development
+## 0.0.3
 - add `set_all` and `clear_all`
 - add basic testing
 - add endianness in sexp conversion
