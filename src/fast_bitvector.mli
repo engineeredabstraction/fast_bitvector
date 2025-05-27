@@ -6,8 +6,8 @@ type t [@@deriving sexp]
 
 val max_length : int
 
-val create : length:int -> t
-val create_full : length:int -> t
+val create : len:int -> t
+val create_full : len:int -> t
 
 module type Ops := 
   sig

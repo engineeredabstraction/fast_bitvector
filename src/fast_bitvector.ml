@@ -28,7 +28,7 @@ let total_words ~length =
 
 let word_size_bytes = word_size / 8
 
-let create ~length:new_length =
+let create ~len:new_length =
   if new_length > max_length
   then failwithf "length %d exceeds maximum length %d" new_length max_length;
   let total_data_words = (new_length + word_size - 1) / word_size in
@@ -249,14 +249,14 @@ let equal a b =
   la = lb && Unsafe.equal a b
 
 let init new_length ~f =
-  let t = create ~length:new_length in
+  let t = create ~len:new_length in
   for i = 0 to new_length - 1 do
     Unsafe.set_to t i ((f [@inlined hint]) i);
   done;
   t
 
-let create_full ~length =
-  let t = create ~length in
+let create_full ~len =
+  let t = create ~len in
   Unsafe.not ~result:t t
 
 let copy t =
@@ -265,7 +265,7 @@ let copy t =
 let append_internal long short ~length_long ~length_short =
   (* CR smuenzel: only do individual sets on overlap, blit the rest *)
   let length = length_long + length_short in
-  let t = create ~length in
+  let t = create ~len:length in
   Bytes.blit long 1 t 1 (length / word_size_bytes);
   for i = 0 to pred length_short do
     Unsafe.set_to t (length_long + i) (Unsafe.get short i)

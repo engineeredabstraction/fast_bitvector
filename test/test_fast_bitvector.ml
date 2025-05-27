@@ -2,7 +2,7 @@ open! Expect_test_helpers_core
 open! Sexplib0.Sexp_conv
 
 let%expect_test "Basic" =
-  let a, b = Fast_bitvector.create ~length:100, Fast_bitvector.create ~length:100 in
+  let a, b = Fast_bitvector.create ~len:100, Fast_bitvector.create ~len:100 in
   print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
   [%expect {|
     ((a (
