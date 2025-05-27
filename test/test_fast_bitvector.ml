@@ -69,7 +69,7 @@ let%expect_test "Basic" =
   ()
 
 let%expect_test "Popcount" =
-  let a = Fast_bitvector.create ~length:100 in
+  let a = Fast_bitvector.create ~len:100 in
   let pop = Fast_bitvector.popcount a in
   print_s [%message "" (a : Fast_bitvector.t) (pop : int)];
   [%expect {|
