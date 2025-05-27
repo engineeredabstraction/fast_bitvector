@@ -6,35 +6,90 @@ type t = Bytes.t
 
 let failwithf s = Printf.ksprintf failwith s
 
-external get_int64 : bytes -> int -> int64 = "%caml_bytes_get64u"
-external set_int64 : bytes -> int -> int64 -> unit = "%caml_bytes_set64u"
+module type Element = sig
+  type t
 
-let set_int64 b i v = set_int64 b (i*8) v
-let get_int64 b i = get_int64 b (i*8)
+  val bit_size : int
+  val byte_size : int
+  val shift : int
+
+  val to_int : t -> int
+  val of_int : int -> t
+
+  val get : bytes -> int -> t
+  val set : bytes -> int -> t -> unit
+
+  val zero : t
+  val one : t
+  val minus_one : t
+
+  val sub : t -> t -> t
+  val shift_left : t -> int -> t
+  val shift_right_logical : t -> int -> t
+
+  val logand : t -> t -> t
+  val logor : t -> t -> t
+  val logxor : t -> t -> t
+  val lognot : t -> t
+
+  val count_set_bits : t -> int
+end
+
+module Element_32 = struct
+  include Int32
+
+  let bit_size = 32
+  let byte_size = 4
+  let shift = 5
+
+  external get : bytes -> int -> t = "%caml_bytes_get32u"
+  external set : bytes -> int -> t -> unit = "%caml_bytes_set32u"
+
+  let set b i v = set b (i*byte_size) v
+  let get b i = get b (i*byte_size)
+
+  let count_set_bits = Popcount.count_set_bits_32
+end
+
+module Element_64 = struct
+  include Int64
+
+  let bit_size = 64
+  let byte_size = 8
+  let shift = 6
+
+  external get : bytes -> int -> t = "%caml_bytes_get64u"
+  external set : bytes -> int -> t -> unit = "%caml_bytes_set64u"
+
+  let set b i v = set b (i*byte_size) v
+  let get b i = get b (i*byte_size)
+
+  let count_set_bits = Popcount.count_set_bits_64
+end
+
+module Element = (val
+                   if Sys.word_size = 32
+                    then (module Element_32 : Element)
+                    else (module Element_64 : Element)
+                 )
 
 let length t =
-  get_int64 t 0
-  |> Int64.to_int
-
-let word_size =
-  assert (Sys.word_size = 64);
-  Sys.word_size
+  Element.get t 0
+  |> Element.to_int
 
 let max_length =
-  (Sys.max_string_length*8) - word_size
+  ((Sys.max_string_length / Element.byte_size) - 1) * Element.bit_size
 
 let total_words ~length =
-  (length + word_size - 1) lsr 6
-
-let word_size_bytes = word_size / 8
+  (length + Element.bit_size - 1) lsr Element.shift
 
 let create ~len:new_length =
   if new_length > max_length
   then failwithf "length %d exceeds maximum length %d" new_length max_length;
-  let total_data_words = (new_length + word_size - 1) / word_size in
+  let total_data_words = (new_length + Element.bit_size - 1) / Element.bit_size in
   let total_words = total_data_words + 1 in
-  let t = Bytes.init (total_words * word_size_bytes) (fun _ -> '\x00') in
-  set_int64 t 0 (Int64.of_int new_length);
+  let t = Bytes.init (total_words * Element.byte_size) (fun _ -> '\x00') in
+  Element.set t 0 (Element.of_int new_length);
   assert (length t == new_length);
   t
 
@@ -42,15 +97,15 @@ let [@inline always] loop_set result value =
   let length = length result in
   let total_words = total_words ~length in
   for i = 1 to total_words do
-    set_int64 result i
+    Element.set result i
       value
   done
 
 let set_all t =
-  loop_set t Int64.minus_one
+  loop_set t Element.minus_one
 
 let clear_all t =
-  loop_set t Int64.zero
+  loop_set t Element.zero
 
 external (&&&) : bool -> bool -> bool = "%andint"
 
@@ -62,31 +117,31 @@ let [@inline always] foldop1 ~init ~f ~final a =
     acc :=
       (f [@inlined hint])
         !acc
-        (get_int64 a i)
+        (Element.get a i)
   done;
-  let remaining = length land 63 in
-  let mask = Int64.sub (Int64.shift_left 1L remaining) 1L in
+  let remaining = length land (Element.bit_size - 1) in
+  let mask = Element.sub (Element.shift_left Element.one remaining) Element.one in
   (f [@inlined hint])
     !acc
-    (final ~mask (get_int64 a total_words))
+    (final ~mask (Element.get a total_words))
 
 let popcount t =
   foldop1 t 
     ~init:0
-    ~f:(fun acc v -> acc + (Popcount64.count_set_bits v))
-    ~final:(fun ~mask a -> Int64.logand mask a)
+    ~f:(fun acc v -> acc + (Element.count_set_bits v))
+    ~final:(fun ~mask a -> Element.logand mask a)
 
 let is_empty t =
   foldop1 t
     ~init:true
-    ~f:(fun acc v -> acc &&& (v = Int64.zero))
-    ~final:(fun ~mask a -> Int64.logand mask a)
+    ~f:(fun acc v -> acc &&& (v = Element.zero))
+    ~final:(fun ~mask a -> Element.logand mask a)
 
 let is_full t =
   foldop1 t
     ~init:true
-    ~f:(fun acc v -> acc &&& (v = Int64.minus_one))
-    ~final:(fun ~mask a -> Int64.logor (Int64.lognot mask) a)
+    ~f:(fun acc v -> acc &&& (v = Element.minus_one))
+    ~final:(fun ~mask a -> Element.logor (Element.lognot mask) a)
     
 module type Check = sig
   val index : t -> int -> unit
@@ -100,9 +155,9 @@ module [@inline always] Ops(Check : Check) = struct
     let length = Check.length2 a result in
     let total_words = total_words ~length in
     for i = 1 to total_words do
-      set_int64 result i
+      Element.set result i
         (f
-           (get_int64 a i)
+           (Element.get a i)
         )
     done;
     result
@@ -111,10 +166,10 @@ module [@inline always] Ops(Check : Check) = struct
     let length = Check.length3 a b result in
     let total_words = total_words ~length in
     for i = 1 to total_words do
-      set_int64 result i
+      Element.set result i
         (f
-           (get_int64 a i)
-           (get_int64 b i)
+           (Element.get a i)
+           (Element.get b i)
         )
     done;
     result
@@ -127,60 +182,60 @@ module [@inline always] Ops(Check : Check) = struct
       acc :=
         (f [@inlined hint])
           !acc
-          (get_int64 a i)
-          (get_int64 b i)
+          (Element.get a i)
+          (Element.get b i)
     done;
-    let remaining = length land 63 in
-    let mask = Int64.sub (Int64.shift_left 1L remaining) 1L in
+    let remaining = length land (Element.bit_size - 1) in
+    let mask = Element.sub (Element.shift_left Element.one remaining) Element.one in
     (f [@inlined hint])
       !acc
-      (final ~mask (get_int64 a total_words))
-      (final ~mask (get_int64 b total_words))
+      (final ~mask (Element.get a total_words))
+      (final ~mask (Element.get b total_words))
 
   let [@inline always] get t i =
     Check.index t i;
-    let index = 1 + (i lsr 6) in
-    let subindex = i land 63 in
-    let v = get_int64 t index in
-    Int64.logand
-      (Int64.shift_right_logical v subindex)
-      1L
-    |> Int64.to_int
+    let index = 1 + (i lsr Element.shift) in
+    let subindex = i land (Element.bit_size - 1) in
+    let v = Element.get t index in
+    Element.logand
+      (Element.shift_right_logical v subindex)
+      Element.one
+    |> Element.to_int
     |> (Obj.magic : int -> bool)
 
   let [@inline always] set t i =
     Check.index t i;
-    let index = 1 + (i lsr 6) in
-    let subindex = i land 63 in
-    let v = get_int64 t index in
+    let index = 1 + (i lsr Element.shift) in
+    let subindex = i land (Element.bit_size - 1) in
+    let v = Element.get t index in
     let v' =
-      Int64.logor v (Int64.shift_left 1L subindex)
+      Element.logor v (Element.shift_left Element.one subindex)
     in
-    set_int64 t index v'
+    Element.set t index v'
 
   let [@inline always] set_to t i b =
     Check.index t i;
-    let b = Int64.of_int ((Obj.magic : bool -> int) b) in
-    let index = 1 + (i lsr 6) in
-    let subindex = i land 63 in
-    let v = get_int64 t index in
-    let mask = Int64.lognot (Int64.shift_left Int64.one subindex) in
+    let b = Element.of_int ((Obj.magic : bool -> int) b) in
+    let index = 1 + (i lsr Element.shift) in
+    let subindex = i land (Element.bit_size - 1) in
+    let v = Element.get t index in
+    let mask = Element.lognot (Element.shift_left Element.one subindex) in
     let v' =
-      Int64.logor
-        (Int64.logand v mask)
-        (Int64.shift_left b subindex)
+      Element.logor
+        (Element.logand v mask)
+        (Element.shift_left b subindex)
     in
-    set_int64 t index v'
+    Element.set t index v'
 
   let [@inline always] clear t i =
     Check.index t i;
-    let index = 1 + (i lsr 6) in
-    let subindex = i land 63 in
-    let v = get_int64 t index in
+    let index = 1 + (i lsr Element.shift) in
+    let subindex = i land (Element.bit_size - 1) in
+    let v = Element.get t index in
     let v' =
-      Int64.logand v (Int64.lognot (Int64.shift_left 1L subindex))
+      Element.logand v (Element.lognot (Element.shift_left Element.one subindex))
     in
-    set_int64 t index v'
+    Element.set t index v'
 
   let equal a b =
     foldop2 a b
@@ -188,21 +243,21 @@ module [@inline always] Ops(Check : Check) = struct
       ~f:(fun acc a b ->
           acc
           &&&
-          (0L = (Int64.logxor a b))
+          (Element.zero = (Element.logxor a b))
         )
-      ~final:(fun ~mask a -> Int64.logand mask a)
+      ~final:(fun ~mask a -> Element.logand mask a)
 
   let not ~result a =
-    logop1 ~f:Int64.lognot a result
+    logop1 ~f:Element.lognot a result
 
   let and_ ~result a b =
-    logop2 ~f:Int64.logand a b result
+    logop2 ~f:Element.logand a b result
 
   let or_ ~result a b =
-    logop2 ~f:Int64.logor a b result
+    logop2 ~f:Element.logor a b result
 
   let xor ~result a b =
-    logop2 ~f:Int64.logxor a b result
+    logop2 ~f:Element.logxor a b result
 
   module Set = struct
     let mem = get
@@ -213,7 +268,7 @@ module [@inline always] Ops(Check : Check) = struct
 
     let difference ~result a b =
       logop2 ~f:(fun a b ->
-          Int64.logand a (Int64.lognot b)
+          Element.logand a (Element.lognot b)
         ) a b result
   end
 

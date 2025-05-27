@@ -2,9 +2,9 @@
   (name fast_bitvector)
   (public_name fast_bitvector)
   (libraries 
-    (select popcount64.ml from
-            (!ocaml_intrinsics_kernel -> popcount64.caml.ml)
-            (ocaml_intrinsics_kernel -> popcount64.intrinsic.ml)
+    (select popcount.ml from
+            (!ocaml_intrinsics_kernel -> popcount.caml.ml)
+            (ocaml_intrinsics_kernel -> popcount.intrinsic.ml)
             ))
   (preprocess (pps ppx_sexp_conv ppx_sexp_value))
   )
