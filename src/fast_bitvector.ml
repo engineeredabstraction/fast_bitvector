@@ -262,22 +262,16 @@ let create_full ~len =
 let copy t =
   Bytes.copy t
 
-let append_internal long short ~length_long ~length_short =
-  (* CR smuenzel: only do individual sets on overlap, blit the rest *)
-  let length = length_long + length_short in
-  let t = create ~len:length in
-  Bytes.blit long 1 t 1 (length / word_size_bytes);
-  for i = 0 to pred length_short do
-    Unsafe.set_to t (length_long + i) (Unsafe.get short i)
-  done;
-  t
-
 let append a b =
   let length_a = length a in
   let length_b = length b in
-  if length_a >= length_b
-  then append_internal a b ~length_long:length_a ~length_short:length_b
-  else append_internal b a ~length_long:length_b ~length_short:length_a
+  let length = length_a + length_b in
+  let t = create ~len:length in
+  Bytes.blit a 1 t 1 ((length_a + 1) / 8);
+  for i = 0 to pred length_b do
+    Unsafe.set_to t (length_b + i) (Unsafe.get b i)
+  done;
+  t
 
 let [@inline always] fold ~init ~f t =
   let length = length t in
