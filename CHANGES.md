@@ -1,4 +1,8 @@
 
+
+## 0.0.4.2
+- Additional opam fixes
+
 ## 0.0.4.1
 - Update opam files to build with earlier ocaml
 
