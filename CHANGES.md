@@ -1,4 +1,7 @@
 
+## 0.0.4.1
+- Update opam files to build with earlier ocaml
+
 ## 0.0.4
 - compatibility with ocaml 4.14
 - use `~len` instead of `~length`
