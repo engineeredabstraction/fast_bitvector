@@ -6,5 +6,6 @@
             (!ocaml_intrinsics_kernel -> popcount64.caml.ml)
             (ocaml_intrinsics_kernel -> popcount64.intrinsic.ml)
             ))
+  (modules fast_bitvector popcount64)
   (preprocess (pps ppx_sexp_conv ppx_sexp_value))
   )
