@@ -8,16 +8,6 @@ license: "MPL-2.0"
 tags: ["bitvector" "bitset"]
 homepage: "https://github.com/engineeredabstraction/fast_bitvector"
 bug-reports: "https://github.com/engineeredabstraction/fast_bitvector/issues"
-depends: [
-  "dune" {>= "3.18"}
-  "ocaml" {>= "5.1.0"}
-  "ocaml_intrinsics_kernel"
-  "ppx_sexp_conv"
-  "ppx_sexp_value"
-  "expect_test_helpers_core" {with-test}
-  "ppx_jane" {with-test}
-  "odoc" {with-doc}
-]
 build: [
   ["dune" "subst"] {dev}
   [
@@ -34,3 +24,12 @@ build: [
 ]
 dev-repo: "git+https://github.com/engineeredabstraction/fast_bitvector.git"
 x-maintenance-intent: ["(latest)"]
+depends: [
+  "dune" {>= "3.18"}
+  (("ocaml" {>= "4.14.0" & <"5.1.0"}) | ("ocaml" {>= "5.1.0"} & "ocaml_intrinsics_kernel"))
+  "ppx_sexp_conv"
+  "ppx_sexp_value"
+  "expect_test_helpers_core" {with-test}
+  "ppx_jane" {with-test}
+  "odoc" {with-doc}
+]

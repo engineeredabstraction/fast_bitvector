@@ -67,3 +67,23 @@ let%expect_test "Basic" =
     |}];
 
   ()
+
+let%expect_test "Popcount" =
+  let a = Fast_bitvector.create ~length:100 in
+  let pop = Fast_bitvector.popcount a in
+  print_s [%message "" (a : Fast_bitvector.t) (pop : int)];
+  [%expect {|
+    ((a (
+       LE
+       0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
+     (pop 0))
+    |}];
+  Fast_bitvector.set_all a;
+  let pop = Fast_bitvector.popcount a in
+  print_s [%message "" (a : Fast_bitvector.t) (pop : int)];
+  [%expect {|
+    ((a (
+       LE
+       1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111))
+     (pop 100))
+    |}]
