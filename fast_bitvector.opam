@@ -33,3 +33,4 @@ depends: [
   "ppx_jane" {with-test}
   "odoc" {with-doc}
 ]
+available: (arch != "arm32") & (arch != "x86_32") & (arch != "ppc32") & (arch != "s390x")
