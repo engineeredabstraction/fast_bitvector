@@ -1,5 +1,5 @@
 
-## Development Version
+## 0.0.4
 - compatibility with ocaml 4.14
 - use `~len` instead of `~length`
 - fix append and add tests
