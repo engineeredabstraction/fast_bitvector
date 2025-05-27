@@ -2,6 +2,7 @@
 ## Development Version
 - compatibility with ocaml 4.14
 - use `~len` instead of `~length`
+- fix append and add tests
 
 ## 0.0.3.1
 - use ocaml_intrinsics_kernel
