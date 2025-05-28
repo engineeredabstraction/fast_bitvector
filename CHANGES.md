@@ -1,5 +1,7 @@
 
 ## Development Version
+
+## 0.0.5
 - 32-bit compatible
 - Properly fix append
 - Add more tests for logical operations
