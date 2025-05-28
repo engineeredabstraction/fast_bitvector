@@ -26,7 +26,7 @@ dev-repo: "git+https://github.com/engineeredabstraction/fast_bitvector.git"
 x-maintenance-intent: ["(latest)"]
 depends: [
   "dune" {>= "3.18"}
-  (("ocaml" {>= "4.14.0" & <"5.1.0"}) | ("ocaml" {>= "5.1.0"} & "ocaml_intrinsics_kernel"))
+  (("ocaml" {>= "4.14.0" & <"5.1.0"}) | ("ocaml" {>= "5.1.0"} & "ocaml_intrinsics_kernel" { arch != "arm32" & arch != "x86_32" }))
   "ppx_sexp_conv"
   "ppx_sexp_value" { >= "v0.16.0" }
   "expect_test_helpers_core" {with-test}
