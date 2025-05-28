@@ -326,9 +326,9 @@ let append a b =
   let length_b = length b in
   let length = length_a + length_b in
   let t = create ~len:length in
-  Bytes.blit a 1 t 1 ((length_a + 1) / 8);
+  Bytes.blit a Element.byte_size t Element.byte_size ((length_a + 7) / 8);
   for i = 0 to pred length_b do
-    Unsafe.set_to t (length_b + i) (Unsafe.get b i)
+    Unsafe.set_to t (length_a + i) (Unsafe.get b i)
   done;
   t
 
