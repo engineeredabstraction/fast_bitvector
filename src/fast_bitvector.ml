@@ -2,6 +2,8 @@
  * SPDX-FileCopyrightText: (c) 2025 Stefan Muenzel
  *)
 
+let (=) = Int.equal
+
 type t = Bytes.t
 
 let failwithf s = Printf.ksprintf failwith s
@@ -12,6 +14,8 @@ module type Element = sig
   val bit_size : int
   val byte_size : int
   val shift : int
+
+  val equal : t -> t -> bool
 
   val to_int : t -> int
   val of_int : int -> t
@@ -80,7 +84,7 @@ let length t =
 let max_length =
   ((Sys.max_string_length / Element.byte_size) - 1) * Element.bit_size
 
-let total_words ~length =
+let [@inline always] total_words ~length =
   (length + Element.bit_size - 1) lsr Element.shift
 
 let create ~len:new_length =
@@ -134,13 +138,13 @@ let popcount t =
 let is_empty t =
   foldop1 t
     ~init:true
-    ~f:(fun acc v -> acc &&& (v = Element.zero))
+    ~f:(fun acc v -> acc &&& (Element.equal v Element.zero))
     ~final:(fun ~mask a -> Element.logand mask a)
 
 let is_full t =
   foldop1 t
     ~init:true
-    ~f:(fun acc v -> acc &&& (v = Element.minus_one))
+    ~f:(fun acc v -> acc &&& (Element.equal v Element.minus_one))
     ~final:(fun ~mask a -> Element.logor (Element.lognot mask) a)
     
 module type Check = sig
@@ -243,7 +247,7 @@ module [@inline always] Ops(Check : Check) = struct
       ~f:(fun acc a b ->
           acc
           &&&
-          (Element.zero = (Element.logxor a b))
+          (Element.equal Element.zero (Element.logxor a b))
         )
       ~final:(fun ~mask a -> Element.logand mask a)
 
@@ -275,21 +279,21 @@ module [@inline always] Ops(Check : Check) = struct
 end
 
 module Unsafe = Ops(struct
-    let index _ _ = ()
-    let length2 a _ = length a
-    let length3 a _ _ = length a
+    let [@inline always] index _ _ = ()
+    let [@inline always] length2 a _ = length a
+    let [@inline always] length3 a _ _ = length a
   end)
 
 include Ops(struct
-    let index t i = assert (0 <= i && i < length t)
+    let [@inline always] index t i = assert (0 <= i && i < length t)
 
-    let length2 a b =
+    let [@inline always] length2 a b =
       let la = length a in
       let lb = length b in
       assert (la = lb);
       la
 
-    let length3 a b c =
+    let [@inline always] length3 a b c =
       let la = length a in
       let lb = length b in
       let lc = length c in
