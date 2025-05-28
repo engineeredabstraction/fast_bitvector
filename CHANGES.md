@@ -1,4 +1,6 @@
 
+## Development Version
+- 32-bit compatible
 
 ## 0.0.4.2
 - Additional opam fixes
