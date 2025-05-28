@@ -1,4 +1,8 @@
 
+## Development Version
+- 32-bit compatible
+- Properly fix append
+- Add more tests for logical operations
 
 ## 0.0.4.2
 - Additional opam fixes

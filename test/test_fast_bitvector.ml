@@ -102,5 +102,47 @@ let%expect_test "Append" =
        0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
      (c (
        LE
-       00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111)))
+       00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111)))
+    |}]
+
+let%expect_test "Logical" = 
+  let f () = Fast_bitvector.create ~len:10 in
+  let a0, a1, a2, a3 = f (), f (), f (), f () in
+  let b0, b1, b2, b3 = f (), f (), f (), f () in
+  let c = Fast_bitvector.create ~len:40 in
+  Fast_bitvector.set_all a2;
+  Fast_bitvector.set_all a3;
+  Fast_bitvector.set_all b1;
+  Fast_bitvector.set_all b3;
+  let a = Fast_bitvector.append a0 (Fast_bitvector.append a1 (Fast_bitvector.append a2 a3)) in
+  let b = Fast_bitvector.append b0 (Fast_bitvector.append b1 (Fast_bitvector.append b2 b3)) in
+  ();
+  let _ = Fast_bitvector.and_ ~result:c a b in
+  print_s [%message "and" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
+  ];
+  [%expect {|
+    (and
+      (a (LE 1111111111111111111100000000000000000000))
+      (b (LE 1111111111000000000011111111110000000000))
+      (c (LE 1111111111000000000000000000000000000000)))
     |}];
+  let _ = Fast_bitvector.or_ ~result:c a b in
+  print_s [%message "or" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
+  ];
+  [%expect {|
+    (or
+      (a (LE 1111111111111111111100000000000000000000))
+      (b (LE 1111111111000000000011111111110000000000))
+      (c (LE 1111111111111111111111111111110000000000)))
+    |}];
+  let _ = Fast_bitvector.xor ~result:c a b in
+  print_s [%message "xor" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
+  ];
+  [%expect {|
+    (xor
+      (a (LE 1111111111111111111100000000000000000000))
+      (b (LE 1111111111000000000011111111110000000000))
+      (c (LE 0000000000111111111111111111110000000000)))
+    |}]
+
+
