@@ -105,6 +105,29 @@ let%expect_test "Append" =
        00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111)))
     |}]
 
+let%expect_test "Extend" =
+  let a = Fast_bitvector.create ~len:10 in
+  Fast_bitvector.set_all a;
+  let b = Fast_bitvector.extend a ~by:10 in
+  print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
+  [%expect
+    {|
+    ((a (LE 1111111111))
+     (b (LE 00000000001111111111)))
+    |}];
+  let empty = Fast_bitvector.create ~len:0 in
+  let empty_ten = Fast_bitvector.extend empty ~by:10 in
+  print_s
+    [%message
+      ""
+        (Fast_bitvector.is_empty empty : bool)
+        (Fast_bitvector.is_empty empty_ten : bool)];
+  [%expect
+    {|
+      (("Fast_bitvector.is_empty empty"     true)
+       ("Fast_bitvector.is_empty empty_ten" true))
+    |}]
+
 let%expect_test "Logical" = 
   let f () = Fast_bitvector.create ~len:10 in
   let a0, a1, a2, a3 = f (), f (), f (), f () in
@@ -146,3 +169,19 @@ let%expect_test "Logical" =
     |}]
 
 
+let%expect_test "Convertion roundtrips" =
+  let a = Fast_bitvector.create ~len:10 in
+  Fast_bitvector.set_all a;
+  let b = a |> Fast_bitvector.to_iter |> Fast_bitvector.of_iter in
+  let c = a |> Fast_bitvector.to_seq |> Fast_bitvector.of_seq in
+  print_s
+    [%message
+      ""
+        (Fast_bitvector.equal a b : bool)
+        (Fast_bitvector.equal a c : bool)
+        ];
+  [%expect
+    {|
+      (("Fast_bitvector.equal a b" true)
+       ("Fast_bitvector.equal a c" true))
+    |}]

@@ -274,6 +274,8 @@ module [@inline always] Ops(Check : Check) = struct
       logop2 ~f:(fun a b ->
           Element.logand a (Element.lognot b)
         ) a b result
+    
+    let union = or_
   end
 
 end
@@ -332,6 +334,24 @@ let append a b =
   done;
   t
 
+let extend t ~by =
+  let prev_length = length t in
+  let new_length = prev_length + by in
+  let prev_word_size = (prev_length + 7) / 8 in
+  let result =
+    if prev_word_size >= new_length then (
+      Element.set t 0 (Element.of_int new_length);
+      t)
+    else
+      let result = create ~len:new_length in
+      Bytes.blit t Element.byte_size result Element.byte_size prev_word_size;
+      result
+  in
+  for i = 0 to pred (prev_word_size + Element.byte_size) do
+    Unsafe.set_to result (prev_length + i) false
+  done;
+  result
+
 let [@inline always] fold ~init ~f t =
   let length = length t in
   let acc = ref init in
@@ -342,8 +362,10 @@ let [@inline always] fold ~init ~f t =
   !acc
 
 let map t ~f =
-  (init [@inlined hint]) (length t)
-    ~f:(fun i -> f (Unsafe.get t i))
+  (init [@inlined hint]) (length t) ~f:(fun i -> f (Unsafe.get t i))
+
+let mapi t ~f =
+  (init [@inlined hint]) (length t) ~f:(fun i -> f i (Unsafe.get t i))
 
 open Sexplib0
 
@@ -435,3 +457,35 @@ module Little_endian = struct
 
   let t_of_sexp = t_of_sexp
 end
+
+let of_iter iter =
+  let result = ref (create ~len:0) in
+  iter (fun bit ->
+      let i = length !result in
+      let new_result = extend !result ~by:1 in
+      set_to new_result i bit;
+      result := new_result);
+  !result
+
+let to_iter v f =
+  ignore
+  @@ fold ~init:0
+       ~f:(fun i bit ->
+         f bit;
+         i + 1)
+       v
+
+let to_seq v =
+  let rec aux v i () =
+    if length v > i then Seq.Cons (get v i, aux v (i + 1)) else Seq.Nil
+  in
+  aux v 0
+
+let of_seq seq =
+  Seq.fold_left
+    (fun v bit ->
+      let i = length v in
+      let new_result = extend v ~by:1 in
+      set_to new_result i bit;
+      new_result)
+    (create ~len:0) seq
