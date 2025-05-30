@@ -81,7 +81,7 @@ val append : t -> t -> t
 (** Append one bitvector to another. *)
 
 val extend : t -> by:int -> t
-(** Append an empty bitvector of size [by]. *)
+(** Append (potentially inplace) an empty bitvector of size [by]. *)
 
 val fold : init:'a -> f:('a -> bool -> 'a) -> t -> 'a
 (** [fold ~init ~f b0...bn] is [f (f (f init b0)...) bn], where [b0...bn] are

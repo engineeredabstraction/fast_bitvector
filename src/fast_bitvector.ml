@@ -337,18 +337,19 @@ let append a b =
 let extend t ~by =
   let prev_length = length t in
   let new_length = prev_length + by in
-  let prev_word_size = (prev_length + 7) / 8 in
+  let prev_byte_size = (prev_length + 7) / 8 in
+  let prev_capacity = (8*prev_byte_size) in
   let result =
-    if prev_word_size >= new_length then (
+    if new_length <= prev_capacity then (
       Element.set t 0 (Element.of_int new_length);
       t)
     else
       let result = create ~len:new_length in
-      Bytes.blit t Element.byte_size result Element.byte_size prev_word_size;
+      Bytes.blit t Element.byte_size result Element.byte_size prev_byte_size;
       result
   in
-  for i = 0 to pred (prev_word_size + Element.byte_size) do
-    Unsafe.set_to result (prev_length + i) false
+  for i = prev_length to pred prev_capacity do
+    Unsafe.set_to result i false
   done;
   result
 
