@@ -1,10 +1,11 @@
 ## Development
 - Added new API:
     - `union` to complete set operations;
-    - `extend` in order to append more bit fields without intermediate allocations;
-    - `mapi` as just `map` seems to be useless;
-    - `to/of_iter/seq` to connect to other containers.
-- Added public documentation to public API.
+    - `extend` in order to append more empty bit fields without intermediate allocations;
+    - `mapi` as simple `map` requires external mutable state to do something more complex;
+    - `to/of_seq` to connect to other containers;
+    - `iter` and `iteri`.
+- Added documentation to most of the public API.
 
 ## 0.0.5
 - 32-bit compatible

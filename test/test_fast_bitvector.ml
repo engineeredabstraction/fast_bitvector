@@ -180,14 +180,13 @@ let%expect_test "Logical" =
 let%expect_test "Convertion roundtrips" =
   let a = Fast_bitvector.create ~len:10 in
   Fast_bitvector.set_all a;
-  let b = a |> Fast_bitvector.to_iter |> Fast_bitvector.of_iter in
+  let b =
+    a |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.of_iter
+  in
   let c = a |> Fast_bitvector.to_seq |> Fast_bitvector.of_seq in
   print_s
     [%message
-      ""
-        (Fast_bitvector.equal a b : bool)
-        (Fast_bitvector.equal a c : bool)
-        ];
+      "" (Fast_bitvector.equal a b : bool) (Fast_bitvector.equal a c : bool)];
   [%expect
     {|
       (("Fast_bitvector.equal a b" true)

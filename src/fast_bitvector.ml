@@ -468,13 +468,15 @@ let of_iter iter =
       result := new_result);
   !result
 
-let to_iter v f =
+let iteri ~f v =
   ignore
   @@ fold ~init:0
        ~f:(fun i bit ->
-         f bit;
+         f i bit;
          i + 1)
        v
+
+let iter ~f v = iteri ~f:(fun _i b -> f b) v
 
 let to_seq v =
   let rec aux v i () =

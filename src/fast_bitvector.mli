@@ -109,14 +109,17 @@ val is_empty : t -> bool
 val is_full : t -> bool
 (** Return whenever all bits are one. *)
 
+val iter : f:(bool -> unit) -> t -> unit
+(** Iterate over all bits. *)
+
+val iteri : f:(int -> bool -> unit) -> t -> unit
+(** Iterate over all bits and their offsets. *)
+
 val of_iter : ((bool -> unit) -> unit) -> t
-(** Covert an iterator into a bitvector. *)
-
-val to_iter : t -> (bool -> unit) -> unit
-(** Return an iterator (push style) over bits. *)
-
-val of_seq : bool Seq.t -> t
-(** Convert a sequence into a bitvector. *)
+(** Convert an iterator into a bitvector. *)
 
 val to_seq : t -> bool Seq.t
 (** Return a sequence (pull style) over bits. *)
+
+val of_seq : bool Seq.t -> t
+(** Convert a sequence into a bitvector. *)
