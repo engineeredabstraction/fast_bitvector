@@ -91,6 +91,9 @@ val fold : init:'a -> f:('a -> bool -> 'a) -> t -> 'a
 (** [fold ~init ~f b0...bn] is [f (f (f init b0)...) bn], where [b0...bn] are
     individual bits in a bitvector. *)
 
+val foldi : init:'a -> f:('a -> int -> bool -> 'a) -> t -> 'a
+(** [foldi] is [fold] with offset provided. *)
+
 val map : t -> f:(bool -> bool) -> t
 (** Map every bit in the vector with function [f]. *)
 
