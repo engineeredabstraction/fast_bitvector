@@ -85,7 +85,7 @@ val extend : by:int -> t -> t
 
 val extend_inplace : by:int -> t -> t
 (** Resize bitvector to accomodate [by] bits, or allocate bigger bitvector like
-    [extend]. New bits may have random values. *)
+    [extend]. New bits may have random values. Invalidates input vector. *)
 
 val fold : init:'a -> f:('a -> bool -> 'a) -> t -> 'a
 (** [fold ~init ~f b0...bn] is [f (f (f init b0)...) bn], where [b0...bn] are
