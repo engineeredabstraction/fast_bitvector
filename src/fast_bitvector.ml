@@ -37,6 +37,8 @@ module type Element = sig
   val lognot : t -> t
 
   val count_set_bits : t -> int
+
+  val sexp_of_t : t -> Sexplib0.Sexp.t
 end
 
 module Element_32 = struct
@@ -53,6 +55,8 @@ module Element_32 = struct
   let get b i = get b (i*byte_size)
 
   let count_set_bits = Popcount.count_set_bits_32
+
+  let sexp_of_t = Sexplib0.Sexp_conv.sexp_of_int32
 end
 
 module Element_64 = struct
@@ -69,22 +73,52 @@ module Element_64 = struct
   let get b i = get b (i*byte_size)
 
   let count_set_bits = Popcount.count_set_bits_64
+  let sexp_of_t = Sexplib0.Sexp_conv.sexp_of_int64 
 end
 
-module Element = (val
-                   if Sys.word_size = 32
-                    then (module Element_32 : Element)
-                    else (module Element_64 : Element)
-                 )
+module Element = struct
+  include
+    (val if Sys.word_size = 32 then (module Element_32 : Element)
+         else (module Element_64 : Element))
 
-let length t =
-  Element.get t 0
-  |> Element.to_int
+  let foldi ~init ~f e =
+    let rec aux acc i e =
+      if i < bit_size then
+        let raw_bit = logand one e in
+        let bit = raw_bit |> to_int |> (Obj.magic : int -> bool) in
+        let acc = f acc i bit in
+        aux acc (i + 1) (shift_right_logical e 1)
+      else acc
+    in
+    aux init 0 e
+
+  let fold ~init ~f e = foldi ~init ~f:(fun acc _i b -> f acc b) e
+  let iteri ~f e = foldi ~init:() ~f:(fun _acc i b -> f i b) e
+  let iter ~f e = iteri ~f:(fun _i b -> f b) e
+
+  let of_iter iter =
+    let result = ref zero in
+    let i = ref 0 in
+    iter (fun bit ->
+        let bit = bit |> (Obj.magic : bool -> int) |> of_int in
+        let bit = shift_left bit !i in
+        result := logor bit !result;
+        i := !i + 1
+    );
+    !result
+
+  let%test_unit _ =
+    let seven = of_int 7 in
+    let restored = of_iter (fun f -> iter ~f seven) in
+    [%test_eq: t] seven restored
+end
+
+let length t = Element.get t 0 |> Element.to_int
 
 let max_length =
   ((Sys.max_string_length / Element.byte_size) - 1) * Element.bit_size
 
-let [@inline always] total_words ~length =
+let[@inline always] total_words ~length =
   (length + Element.bit_size - 1) lsr Element.shift
 
 let create ~len:new_length =
@@ -282,8 +316,8 @@ end
 
 module Unsafe = Ops(struct
     let [@inline always] index _ _ = ()
-    let [@inline always] length2 a _ = length a
-    let [@inline always] length3 a _ _ = length a
+    let [@inline always] length2 _ r = length r
+    let [@inline always] length3 _ _ r = length r
   end)
 
 include Ops(struct
