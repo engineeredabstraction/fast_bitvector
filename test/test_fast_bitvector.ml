@@ -126,6 +126,14 @@ let%expect_test "Extend" =
     ((a (LE 1111111111))
      (b (LE 0000001111111111)))
     |}];
+  let a = Fast_bitvector.create_full ~len:65 in
+  let b = Fast_bitvector.extend a ~by:1 in
+  print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
+  [%expect
+    {|
+    ((a (LE 11111111111111111111111111111111111111111111111111111111111111111))
+     (b (LE 011111111111111111111111111111111111111111111111111111111111111111)))
+    |}];
   let a = Fast_bitvector.create_full ~len:10 in
   let b = Fast_bitvector.extend_inplace a ~by:6 in
   print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];

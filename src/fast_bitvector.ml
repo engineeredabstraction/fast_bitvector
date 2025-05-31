@@ -339,7 +339,7 @@ let copy_bits src dst =
   if byte_size > 1 then (
     (* This assumes that bit direction in Element and bytes is the same, I guess? *)
     Bytes.blit src Element.byte_size dst Element.byte_size (byte_size - 1);
-    for i = length / 8 to pred length do
+    for i = 8 * (length / 8) to pred length do
       Unsafe.set_to dst i (Unsafe.get src i)
     done)
 
