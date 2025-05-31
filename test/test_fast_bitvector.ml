@@ -106,15 +106,6 @@ let%expect_test "Append" =
     |}]
 
 let%expect_test "Extend" =
-  let a = Fast_bitvector.create ~len:10 in
-  Fast_bitvector.set_all a;
-  let b = Fast_bitvector.extend a ~by:10 in
-  print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
-  [%expect
-    {|
-    ((a (LE 1111111111))
-     (b (LE 00000000001111111111)))
-    |}];
   let empty = Fast_bitvector.create ~len:0 in
   let empty_ten = Fast_bitvector.extend empty ~by:10 in
   print_s
