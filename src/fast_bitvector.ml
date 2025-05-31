@@ -353,14 +353,16 @@ let extend t ~by =
   done;
   result
 
-let [@inline always] fold ~init ~f t =
+let [@inline always] foldi ~init ~f t =
   let length = length t in
   let acc = ref init in
   for i = 0 to pred length do
     (* CR smuenzel: process word at a time *)
-    acc := f !acc (Unsafe.get t i)
+    acc := f !acc i (Unsafe.get t i)
   done;
   !acc
+
+let fold ~init ~f v = foldi ~init ~f:(fun acc _i b -> f acc b) v
 
 let map t ~f =
   (init [@inlined hint]) (length t) ~f:(fun i -> f (Unsafe.get t i))
@@ -459,6 +461,10 @@ module Little_endian = struct
   let t_of_sexp = t_of_sexp
 end
 
+let iteri ~f v = foldi ~init:() ~f:(fun i bit -> f i bit) v
+
+let iter ~f v = iteri ~f:(fun _i b -> f b) v
+
 let of_iter iter =
   let result = ref (create ~len:0) in
   iter (fun bit ->
@@ -468,16 +474,6 @@ let of_iter iter =
       result := new_result);
   !result
 
-let iteri ~f v =
-  ignore
-  @@ fold ~init:0
-       ~f:(fun i bit ->
-         f i bit;
-         i + 1)
-       v
-
-let iter ~f v = iteri ~f:(fun _i b -> f b) v
-
 let to_seq v =
   let rec aux v i () =
     if length v > i then Seq.Cons (get v i, aux v (i + 1)) else Seq.Nil
@@ -485,10 +481,9 @@ let to_seq v =
   aux v 0
 
 let of_seq seq =
-  Seq.fold_left
-    (fun v bit ->
-      let i = length v in
+  Seq.fold_lefti
+    (fun v i bit ->
       let new_result = extend v ~by:1 in
       set_to new_result i bit;
-      new_result)
+      (new_result))
     (create ~len:0) seq

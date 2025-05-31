@@ -4,7 +4,7 @@
     - `extend` in order to append more empty bit fields without intermediate allocations;
     - `mapi` as simple `map` requires external mutable state to do something more complex;
     - `to/of_seq` to connect to other containers;
-    - `iter` and `iteri`.
+    - `iter` and `iteri`, `foldi` implementations.
 - Added documentation to most of the public API.
 
 ## 0.0.5
