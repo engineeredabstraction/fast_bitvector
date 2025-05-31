@@ -1,7 +1,7 @@
 ## Development
 - Added new API:
     - `union` to complete set operations;
-    - `extend` in order to append more empty bit fields without intermediate allocations;
+    - `extend` allocates a bigger copy of a bitvector, `extend_inplace` - same, but may reuse the internal byte array;
     - `mapi` as simple `map` requires external mutable state to do something more complex;
     - `to/of_seq` to connect to other containers;
     - `iter` and `iteri`, `foldi` implementations.
