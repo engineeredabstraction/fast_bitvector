@@ -274,6 +274,8 @@ module [@inline always] Ops(Check : Check) = struct
       logop2 ~f:(fun a b ->
           Element.logand a (Element.lognot b)
         ) a b result
+    
+    let union = or_
   end
 
 end
@@ -318,8 +320,7 @@ let create_full ~len =
   let t = create ~len in
   Unsafe.not ~result:t t
 
-let copy t =
-  Bytes.copy t
+let copy t = Bytes.copy t
 
 let append a b =
   let length_a = length a in
@@ -332,18 +333,53 @@ let append a b =
   done;
   t
 
-let [@inline always] fold ~init ~f t =
+let copy_bits src dst =
+  let length = Int.min (length src) (length dst) in
+  let byte_size = (length + 7) / 8 in
+  if byte_size > 1 then (
+    (* This assumes that bit direction in Element and bytes is the same, I guess? *)
+    Bytes.blit src Element.byte_size dst Element.byte_size (byte_size - 1);
+    for i = length / 8 to pred length do
+      Unsafe.set_to dst i (Unsafe.get src i)
+    done)
+
+let extend ~by v =
+  let len = length v + by in
+  let new_vec = create ~len in
+  copy_bits v new_vec;
+  new_vec
+
+let extend_inplace ~by v =
+  let prev_length = length v in
+  let new_length = prev_length + by in
+  let prev_capacity = 8 * Bytes.length v in
+  let new_vec =
+    if new_length <= prev_capacity then (
+      Element.set v 0 (Element.of_int new_length);
+      v)
+    else extend ~by v
+  in
+  for i = prev_length to pred prev_capacity do
+    Unsafe.set_to new_vec i false
+  done;
+  new_vec
+
+let[@inline always] foldi ~init ~f t =
   let length = length t in
   let acc = ref init in
   for i = 0 to pred length do
     (* CR smuenzel: process word at a time *)
-    acc := f !acc (Unsafe.get t i)
+    acc := f !acc i (Unsafe.get t i)
   done;
   !acc
 
+let fold ~init ~f v = foldi ~init ~f:(fun acc _i b -> f acc b) v
+
 let map t ~f =
-  (init [@inlined hint]) (length t)
-    ~f:(fun i -> f (Unsafe.get t i))
+  (init [@inlined hint]) (length t) ~f:(fun i -> f (Unsafe.get t i))
+
+let mapi t ~f =
+  (init [@inlined hint]) (length t) ~f:(fun i -> f i (Unsafe.get t i))
 
 open Sexplib0
 
@@ -435,3 +471,30 @@ module Little_endian = struct
 
   let t_of_sexp = t_of_sexp
 end
+
+let iteri ~f v = foldi ~init:() ~f:(fun _ i bit -> f i bit) v
+
+let iter ~f v = iteri ~f:(fun _i b -> f b) v
+
+let of_iter iter =
+  let result = ref (create ~len:0) in
+  iter (fun bit ->
+      let i = length !result in
+      let new_result = extend_inplace !result ~by:1 in
+      set_to new_result i bit;
+      result := new_result);
+  !result
+
+let to_seq v =
+  let rec aux v i () =
+    if length v > i then Seq.Cons (get v i, aux v (i + 1)) else Seq.Nil
+  in
+  aux v 0
+
+let of_seq seq =
+  Seq.fold_lefti
+    (fun v i bit ->
+      let new_result = extend_inplace v ~by:1 in
+      set_to new_result i bit;
+      (new_result))
+    (create ~len:0) seq
