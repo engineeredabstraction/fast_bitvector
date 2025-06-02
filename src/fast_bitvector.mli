@@ -13,9 +13,34 @@ val create : len:int -> t
 val create_full : len:int -> t
 (** Create a bitvector filled with ones of size [len]. *)
 
-module type Ops := sig
-  type 'a with_result := result:t -> 'a
+type 'a with_result := result:t -> 'a
 
+module type Set := sig
+  val mem : t -> int -> bool
+  (** [mem v i] checks whenever the bit with offset [i] is set to one. *)
+
+  val intersect : (t -> t -> t) with_result
+  (** [intersect ~result x y] returns bitwise and of [x] and [y], on bits
+      allocated in [result]. *)
+
+  val complement : (t -> t) with_result
+  (** [complement ~result x] returns bitwise negation of [x], on bits allocated
+      in [result]. *)
+
+  val symmetric_difference : (t -> t -> t) with_result
+  (** [symmetric_difference ~result x y] returns bitwise xor of [x] and [y], on
+      bits allocated in [result]. *)
+
+  val difference : (t -> t -> t) with_result
+  (** [difference ~result x y] returns bitwise and of [x] and [y], on bits
+      allocated in [result]. *)
+
+  val union : (t -> t -> t) with_result
+  (** [union ~result x y] returns bitwise or of [x] and [y], on bits allocated
+      in [result]. *)
+end
+
+module type Ops := sig
   val set : t -> int -> unit
   val clear : t -> int -> unit
   val set_to : t -> int -> bool -> unit
@@ -26,33 +51,15 @@ module type Ops := sig
   val or_ : (t -> t -> t) with_result
   val xor : (t -> t -> t) with_result
 
-  module Set : sig
-    val mem : t -> int -> bool
-    (** [mem v i] checks whenever the bit with offset [i] is set to one. *)
-
-    val intersect : (t -> t -> t) with_result
-    (** [intersect ~result x y] returns bitwise and of [x] and [y], on bits
-        allocated in [result]. *)
-
-    val complement : (t -> t) with_result
-    (** [complement ~result x] returns bitwise negation of [x], on bits
-        allocated in [result]. *)
-
-    val symmetric_difference : (t -> t -> t) with_result
-    (** [symmetric_difference ~result x y] returns bitwise xor of [x] and [y],
-        on bits allocated in [result]. *)
-
-    val difference : (t -> t -> t) with_result
-    (** [difference ~result x y] returns bitwise and of [x] and [y], on bits
-        allocated in [result]. *)
-
-    val union : (t -> t -> t) with_result
-    (** [union ~result x y] returns bitwise or of [x] and [y], on bits allocated
-        in [result]. *)
-  end
+  module Set : Set
 end
 
 module Unsafe : Ops
+
+module Relaxed : Set
+(** Relaxed set operations: iteration is done on result vector, missing bits in
+    operands are considered zero automatically. *)
+
 include Ops
 
 (* Bit 0 first *)

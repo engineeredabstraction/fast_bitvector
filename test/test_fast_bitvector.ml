@@ -199,3 +199,57 @@ let%expect_test "Convertion roundtrips" =
       (("Fast_bitvector.equal a b" true)
        ("Fast_bitvector.equal a c" true))
     |}]
+
+let%expect_test "Logical (different lengths)" = 
+  let f () = Fast_bitvector.create ~len:10 in
+  let a0, a1, a2, a3 = f (), f (), f (), f () in
+  let b0, b1, b2, b3 = f (), f (), f (), f () in
+  let c = Fast_bitvector.create ~len:40 in
+  let d = Fast_bitvector.create ~len:25 in
+  Fast_bitvector.set_all a2;
+  Fast_bitvector.set_all a3;
+  Fast_bitvector.set_all b1;
+  Fast_bitvector.set_all b3;
+  let a = Fast_bitvector.append a0 (Fast_bitvector.append a1 a2) in
+  let b = Fast_bitvector.append b0 (Fast_bitvector.append b1 (Fast_bitvector.append b2 b3)) in
+  ();
+  let _ = Fast_bitvector.Relaxed.intersect ~result:c a b in
+  print_s [%message "inter" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
+  [%expect {|
+    (inter
+      (a (LE 111111111100000000000000000000))
+      (b (LE 1111111111000000000011111111110000000000))
+      (c (LE 0000000000000000000000000000000000000000)))
+    |}];
+  let _ = Fast_bitvector.Relaxed.intersect ~result:d a b in
+  print_s [%message "inter" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
+  [%expect {|
+    (inter
+      (a (LE 111111111100000000000000000000))
+      (b (LE 1111111111000000000011111111110000000000))
+      (c (LE 0000000000000000000000000000000000000000)))
+    |}];
+  let _ = Fast_bitvector.Relaxed.union ~result:c a b in
+  print_s [%message "union" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
+  [%expect {|
+    (union
+      (a (LE 111111111100000000000000000000))
+      (b (LE 1111111111000000000011111111110000000000))
+      (c (LE 1111111111111111111111111111110000000000)))
+    |}];
+  let _ = Fast_bitvector.Relaxed.symmetric_difference ~result:c a b in
+  print_s [%message "symdiff" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
+  [%expect {|
+    (symdiff
+      (a (LE 111111111100000000000000000000))
+      (b (LE 1111111111000000000011111111110000000000))
+      (c (LE 1111111111111111111111111111110000000000)))
+    |}];
+  let _ = Fast_bitvector.Relaxed.difference ~result:c a b in
+  print_s [%message "diff" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
+  [%expect {|
+    (diff
+      (a (LE 111111111100000000000000000000))
+      (b (LE 1111111111000000000011111111110000000000))
+      (c (LE 0000000000111111111100000000000000000000)))
+    |}]

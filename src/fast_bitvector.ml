@@ -113,6 +113,8 @@ module Element = struct
     let seven = of_int 7 in
     let restored = of_iter (fun f -> iter ~f seven) in
     [%test_eq: t] seven restored
+
+  let[@inline always] get_or_zero e i word_size = (if i <= word_size then (get e i) else zero)
 end
 
 let length t = Element.get t 0 |> Element.to_int
@@ -195,6 +197,31 @@ module type Check = sig
   val length3 : t -> t -> t -> int
 end
 
+let [@inline always] logop1_relaxed ~f a result =
+  let length = length result 
+    and total_words_a = total_words ~length:(length a) in
+  let total_words = total_words ~length in
+  for i = 1 to total_words do
+    Element.set result i
+      (f
+          (Element.get_or_zero a i total_words_a)
+      )
+  done;
+  result
+
+let [@inline always] logop2_relaxed ~f a b result =
+  let total_words = total_words ~length:(length result)
+    and total_words_a = total_words ~length:(length a) 
+    and total_words_b = total_words ~length:(length b) in
+  for i = 1 to total_words do
+    Element.set result i
+      (f
+          (Element.get_or_zero a i total_words_a)
+          (Element.get_or_zero b i total_words_b)
+      )
+  done;
+  result
+
 module [@inline always] Ops(Check : Check) = struct
   let [@inline always] logop1 ~f a result =
     let length = Check.length2 a result in
@@ -223,7 +250,7 @@ module [@inline always] Ops(Check : Check) = struct
     let length = Check.length2 a b in
     let total_words = total_words ~length in
     let acc = ref init in
-    for i = 1 to pred total_words do
+    for i = 1 to total_words do
       acc :=
         (f [@inlined hint])
           !acc
@@ -344,6 +371,20 @@ include Ops(struct
       assert (la = lc);
       la
     end)
+
+module Relaxed = struct
+  let mem = get
+
+  let intersect ~result a b =  logop2_relaxed ~f:Element.logand a b result
+  let union ~result a b  =  logop2_relaxed ~f:Element.logor a b result
+  let complement ~result a = logop1_relaxed ~f:Element.lognot a result
+  let symmetric_difference ~result a b  = logop2_relaxed ~f:Element.logxor a b result
+
+  let difference ~result a b =
+    logop2_relaxed ~f:(fun a b ->
+        Element.logand a (Element.lognot b)
+      ) a b result
+end
 
 let equal a b =
   let la = length a in

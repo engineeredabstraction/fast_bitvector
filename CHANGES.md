@@ -7,7 +7,8 @@
     - `iter` and `iteri`, `foldi` implementations.
 - Added documentation to most of the public API
 - Added iteration to and of words, folding
-- Changed `set_all` to not override allocated bits, but beyond the vector length
+- Changed `set_all` to not override the allocated bits, beyond the vector length
+- relaxed set operations to be able to work with vectors of different length
 
 ## 0.0.5
 - 32-bit compatible
