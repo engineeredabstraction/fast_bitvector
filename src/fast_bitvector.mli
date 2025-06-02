@@ -56,9 +56,13 @@ end
 
 module Unsafe : Ops
 
-module Relaxed : Set
 (** Relaxed set operations: iteration is done on result vector, missing bits in
     operands are considered zero automatically. *)
+module Relaxed : sig
+  include Set
+
+  val equal : t -> t -> bool
+end
 
 include Ops
 

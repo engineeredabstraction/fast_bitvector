@@ -156,6 +156,19 @@ let clear_all result =
 
 external (&&&) : bool -> bool -> bool = "%andint"
 
+let foldi ~init ~f v = 
+  let length = length v in
+  let total_words = total_words ~length in
+  let acc = ref init in
+  for i = 1 to total_words do
+    acc :=
+      (f [@inlined hint])
+        !acc
+        i 
+        (Element.get v i)
+  done;
+  !acc
+
 let [@inline always] foldop1 ~init ~f ~final a =
   let length = length a in
   let total_words = total_words ~length in
@@ -384,6 +397,21 @@ module Relaxed = struct
     logop2_relaxed ~f:(fun a b ->
         Element.logand a (Element.lognot b)
       ) a b result
+  
+  let equal a b =
+    let a, b=  if length a >= length b then
+      a, b
+    else
+      b, a in
+    let total_words_b = total_words ~length:(length b) in
+    foldi a
+      ~init:true
+      ~f:(fun acc i a ->
+          acc
+          &&&
+          (Element.equal Element.zero (Element.logxor a (Element.get_or_zero b i total_words_b)))
+        )
+
 end
 
 let equal a b =

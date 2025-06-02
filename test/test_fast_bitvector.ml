@@ -154,7 +154,6 @@ let%expect_test "Logical" =
   Fast_bitvector.set_all b3;
   let a = Fast_bitvector.append a0 (Fast_bitvector.append a1 (Fast_bitvector.append a2 a3)) in
   let b = Fast_bitvector.append b0 (Fast_bitvector.append b1 (Fast_bitvector.append b2 b3)) in
-  ();
   let _ = Fast_bitvector.and_ ~result:c a b in
   print_s [%message "and" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
   ];
@@ -200,7 +199,7 @@ let%expect_test "Convertion roundtrips" =
        ("Fast_bitvector.equal a c" true))
     |}]
 
-let%expect_test "Logical (different lengths)" = 
+let%expect_test "Relaxed" = 
   let f () = Fast_bitvector.create ~len:10 in
   let a0, a1, a2, a3 = f (), f (), f (), f () in
   let b0, b1, b2, b3 = f (), f (), f (), f () in
@@ -212,7 +211,6 @@ let%expect_test "Logical (different lengths)" =
   Fast_bitvector.set_all b3;
   let a = Fast_bitvector.append a0 (Fast_bitvector.append a1 a2) in
   let b = Fast_bitvector.append b0 (Fast_bitvector.append b1 (Fast_bitvector.append b2 b3)) in
-  ();
   let _ = Fast_bitvector.Relaxed.intersect ~result:c a b in
   print_s [%message "inter" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
   [%expect {|
@@ -252,4 +250,23 @@ let%expect_test "Logical (different lengths)" =
       (a (LE 111111111100000000000000000000))
       (b (LE 1111111111000000000011111111110000000000))
       (c (LE 0000000000111111111100000000000000000000)))
-    |}]
+    |}];
+  let a = Fast_bitvector.append a0 (Fast_bitvector.append a2 a1) in
+  let b = Fast_bitvector.append a0 a2 in
+  print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal a b : bool)];
+  [%expect {|
+    (equal
+      (a (LE 000000000011111111110000000000))
+      (b (LE 11111111110000000000))
+      ("Fast_bitvector.Relaxed.equal a b" true))
+    |}];
+  let a = Fast_bitvector.append a0 (Fast_bitvector.append a2 a1) in
+  let b = Fast_bitvector.create ~len:0 in
+  print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal a b : bool)];
+  [%expect {|
+    (equal
+      (a (LE 000000000011111111110000000000))
+      (b (LE ""))
+      ("Fast_bitvector.Relaxed.equal a b" false))
+    |}];
+
