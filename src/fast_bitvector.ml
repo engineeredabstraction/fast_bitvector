@@ -96,16 +96,18 @@ module Element = struct
   let iteri ~f e = foldi ~init:() ~f:(fun _acc i b -> f i b) e
   let iter ~f e = iteri ~f:(fun _i b -> f b) e
 
-  let of_iter iter =
+  let of_iteri iter = 
     let result = ref zero in
-    let i = ref 0 in
-    iter (fun bit ->
+    iter (fun (i,bit) ->
         let bit = bit |> (Obj.magic : bool -> int) |> of_int in
-        let bit = shift_left bit !i in
-        result := logor bit !result;
-        i := !i + 1
+        let bit = shift_left bit i in
+        result := logor bit !result
     );
     !result
+
+
+  let of_iter iter =
+    of_iteri (Iter.zip_i iter)
 
   let%test_unit _ =
     let seven = of_int 7 in
@@ -121,6 +123,8 @@ let max_length =
 let[@inline always] total_words ~length =
   (length + Element.bit_size - 1) lsr Element.shift
 
+let[@inline always] total_full_words ~length = (length) lsr Element.shift
+
 let create ~len:new_length =
   if new_length > max_length
   then failwithf "length %d exceeds maximum length %d" new_length max_length;
@@ -131,19 +135,22 @@ let create ~len:new_length =
   assert (length t == new_length);
   t
 
-let [@inline always] loop_set result value =
+let set_all result =
+  let length = length result in
+  let total_full_words = total_full_words ~length in
+  let remainder_length = length - (Element.bit_size * total_full_words) in
+  for i = 1 to total_full_words do
+      Element.set result i Element.minus_one
+  done;
+  if remainder_length >= 0 then 
+    Element.set result (total_full_words+1) (Element.of_iter (Iter.repeat true |> Iter.take remainder_length))
+
+let clear_all result =
   let length = length result in
   let total_words = total_words ~length in
   for i = 1 to total_words do
-    Element.set result i
-      value
+    Element.set result i Element.zero
   done
-
-let set_all t =
-  loop_set t Element.minus_one
-
-let clear_all t =
-  loop_set t Element.zero
 
 external (&&&) : bool -> bool -> bool = "%andint"
 

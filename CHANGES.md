@@ -5,7 +5,9 @@
     - `mapi` as simple `map` requires external mutable state to do something more complex;
     - `to/of_seq` to connect to other containers;
     - `iter` and `iteri`, `foldi` implementations.
-- Added documentation to most of the public API.
+- Added documentation to most of the public API
+- Added iteration to and of words, folding
+- Changed `set_all` to not override allocated bits, but beyond the vector length
 
 ## 0.0.5
 - 32-bit compatible

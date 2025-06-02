@@ -3,6 +3,7 @@
  (public_name fast_bitvector)
  (inline_tests)
  (libraries
+  iter
   (select
    popcount.ml
    from
