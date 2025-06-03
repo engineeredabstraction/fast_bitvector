@@ -1,4 +1,8 @@
 
+## Development
+- Remove returned bitvector in ops, user is now required to track it themselves
+- Add `Inplace` variant of all ops in a submodule
+
 ## 0.0.5
 - 32-bit compatible
 - Properly fix append
