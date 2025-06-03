@@ -1,14 +1,14 @@
 ## Development
 - Added new API:
-    - `union` to complete set operations;
-    - `extend` allocates a bigger copy of a bitvector, `extend_inplace` - same, but may reuse the internal byte array;
-    - `mapi` as simple `map` requires external mutable state to do something more complex;
-    - `to/of_seq` to connect to other containers;
-    - `iter` and `iteri`, `foldi` implementations.
+    - `union` to complete set operations
+    - `extend` allocates a bigger copy of a bitvector, `extend_inplace` - same, but may reuse the internal byte array
+    - `mapi` as simple `map` requires external mutable state to do something more complex
+    - `to/of_offset/bool_seq`, `of_offset/bool_iter` to connect to other containers using either `bool` or offset streams/iterators
+    - `iter`, `iteri`, `iter_seti` and `foldi`
 - Added documentation to most of the public API
 - Added iteration to and of words, folding
 - Changed `set_all` to not override the allocated bits, beyond the vector length
-- Added a relaxed set operations to be able to work with vectors of different length
+- Added a relaxed set operations to be able to work with vectors of different length; missing bits default to zero
 
 ## 0.0.5
 - 32-bit compatible

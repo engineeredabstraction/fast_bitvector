@@ -71,6 +71,7 @@ module Big_endian : sig
   type nonrec t = t [@@deriving sexp]
 
   val to_string : t -> string
+  val to_debug_string : t -> string
   val of_string : string -> t
 end
 
@@ -79,6 +80,7 @@ module Little_endian : sig
   type nonrec t = t [@@deriving sexp]
 
   val to_string : t -> string
+  val to_debug_string : t -> string
   val of_string : string -> t
 end
 
@@ -91,26 +93,12 @@ val copy : t -> t
 val append : t -> t -> t
 (** Append one bitvector to another. *)
 
-val extend : by:int -> t -> t
-(** Append an empty bitvector of size [by]. *)
+val extend : len:int -> t -> t
+(** Append a bitvector to [len], new bits are zeroed. *)
 
-val extend_inplace : by:int -> t -> t
-(** Resize bitvector to accomodate [by] bits, or allocate bigger bitvector like
+val extend_inplace : len:int -> t -> t
+(** Resize bitvector to accomodate [len] bits, or allocate bigger bitvector like
     [extend]. New bits may have random values. Invalidates input vector. *)
-
-val fold : init:'a -> f:('a -> bool -> 'a) -> t -> 'a
-(** [fold ~init ~f b0...bn] is [f (f (f init b0)...) bn], where [b0...bn] are
-    individual bits in a bitvector. *)
-
-val foldi : init:'a -> f:('a -> int -> bool -> 'a) -> t -> 'a
-(** [foldi] is [fold] with offset provided. *)
-
-val map : t -> f:(bool -> bool) -> t
-(** Map every bit in the vector with function [f]. *)
-
-val mapi : t -> f:(int -> bool -> bool) -> t
-(** [mapi ~f b0...bn] is [f 0 b0 ... f n bn], where [bi] is [i]-th bit in a
-    bitvector.*)
 
 val popcount : t -> int
 (** Return the count of bits set to one. *)
@@ -127,17 +115,47 @@ val is_empty : t -> bool
 val is_full : t -> bool
 (** Return whenever all bits are one. *)
 
+(** {1 Iterators} *)
+
+val fold : init:'a -> f:('a -> bool -> 'a) -> t -> 'a
+(** [fold ~init ~f b0...bn] is [f (f (f init b0)...) bn], where [b0...bn] are
+    individual bits in a bitvector. *)
+
+val foldi : init:'a -> f:('a -> int -> bool -> 'a) -> t -> 'a
+(** [foldi] is [fold] with offset provided. *)
+
+val map : t -> f:(bool -> bool) -> t
+(** Map every bit in the vector with function [f]. *)
+
+val mapi : t -> f:(int -> bool -> bool) -> t
+(** [mapi ~f b0...bn] is [f 0 b0 ... f n bn], where [bi] is [i]-th bit in a
+    bitvector.*)
+
 val iter : f:(bool -> unit) -> t -> unit
 (** Iterate over all bits. *)
 
 val iteri : f:(int -> bool -> unit) -> t -> unit
 (** Iterate over all bits and their offsets. *)
 
-val of_iter : ((bool -> unit) -> unit) -> t
-(** Convert an iterator into a bitvector. *)
+val iter_seti : f:(int -> unit) -> t -> unit
+(** Iterate over all offsets of set bits. *)
 
-val to_seq : t -> bool Seq.t
-(** Return a sequence (pull style) over bits. *)
+(** {1 Conversions} *)
 
-val of_seq : bool Seq.t -> t
-(** Convert a sequence into a bitvector. *)
+val of_bool_iter : ((bool -> unit) -> unit) -> t
+(** Convert a bool iterator into a bitvector. *)
+
+val to_bool_seq : t -> bool Seq.t
+(** Return a bool sequence (pull style) over bits. *)
+
+val of_bool_seq : bool Seq.t -> t
+(** Convert a bool sequence into a bitvector. *)
+
+val of_offset_iter : ((int -> unit) -> unit) -> t
+(** Convert an offset iterator into a bitvector. *)
+
+val to_offset_seq : t -> int Seq.t
+(** Return an offset sequence (pull style) over bits. *)
+
+val of_offset_seq : int Seq.t -> t
+(** Convert an offset sequence into a bitvector. *)

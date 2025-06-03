@@ -107,7 +107,7 @@ let%expect_test "Append" =
 
 let%expect_test "Extend" =
   let empty = Fast_bitvector.create ~len:0 in
-  let empty_ten = Fast_bitvector.extend empty ~by:10 in
+  let empty_ten = Fast_bitvector.extend empty ~len:1 in
   print_s
     [%message
       ""
@@ -118,8 +118,20 @@ let%expect_test "Extend" =
       (("Fast_bitvector.is_empty empty"     true)
        ("Fast_bitvector.is_empty empty_ten" true))
     |}];
+  let empty_ten = Fast_bitvector.extend_inplace empty ~len:1 in
+  let _ = Fast_bitvector.set_all empty_ten in
+  print_s
+    [%message
+      ""
+        (Fast_bitvector.is_empty empty : bool)
+        (Fast_bitvector.is_full empty_ten : bool)];
+  [%expect
+    {|
+      (("Fast_bitvector.is_empty empty"    true)
+       ("Fast_bitvector.is_full empty_ten" true))
+    |}];
   let a = Fast_bitvector.create_full ~len:10 in
-  let b = Fast_bitvector.extend a ~by:6 in
+  let b = Fast_bitvector.extend a ~len:16 in
   print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
   [%expect
     {|
@@ -127,7 +139,7 @@ let%expect_test "Extend" =
      (b (LE 0000001111111111)))
     |}];
   let a = Fast_bitvector.create_full ~len:65 in
-  let b = Fast_bitvector.extend a ~by:1 in
+  let b = Fast_bitvector.extend a ~len:66 in
   print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
   [%expect
     {|
@@ -135,7 +147,7 @@ let%expect_test "Extend" =
      (b (LE 011111111111111111111111111111111111111111111111111111111111111111)))
     |}];
   let a = Fast_bitvector.create_full ~len:10 in
-  let b = Fast_bitvector.extend_inplace a ~by:6 in
+  let b = Fast_bitvector.extend_inplace a ~len:16 in
   print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
   [%expect
     {|
@@ -180,23 +192,47 @@ let%expect_test "Logical" =
       (a (LE 1111111111111111111100000000000000000000))
       (b (LE 1111111111000000000011111111110000000000))
       (c (LE 0000000000111111111111111111110000000000)))
+    |}];
+  let empty = Fast_bitvector.create ~len:0 in
+  let b = [false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
+  let a = [true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
+  let c = Fast_bitvector.Unsafe.Set.intersect ~result:(Fast_bitvector.create ~len:2) a b in
+  print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal c empty : bool)];
+  [%expect {|
+    (equal
+      (a (LE 1))
+      (b (LE 10))
+      ("Fast_bitvector.Relaxed.equal c empty" true))
+    |}];
+  let a = [false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
+  let b = (Fast_bitvector.create ~len:2) in
+  let b = Fast_bitvector.Unsafe.or_ ~result:b a b in
+  print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal a b : bool)];
+  [%expect {|
+    (equal
+      (a (LE 10))
+      (b (LE 10))
+      ("Fast_bitvector.Relaxed.equal a b" true))
     |}]
-
 
 let%expect_test "Convertion roundtrips" =
   let a = Fast_bitvector.create ~len:10 in
-  Fast_bitvector.set_all a;
-  let b =
-    a |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.of_iter
-  in
-  let c = a |> Fast_bitvector.to_seq |> Fast_bitvector.of_seq in
+  for i = 0 to 9 do 
+    Fast_bitvector.set_to a i ((Int.rem i 2) = 0)
+  done;
+  let b = a |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.of_bool_iter in
+  let c = a |> Fast_bitvector.to_bool_seq |> Fast_bitvector.of_bool_seq in
+  let d = a |> Fast_bitvector.to_offset_seq |> Fast_bitvector.of_offset_seq in
+  let e = a |> (fun t f -> Fast_bitvector.iter_seti ~f t) |> Fast_bitvector.of_offset_iter in
   print_s
     [%message
-      "" (Fast_bitvector.equal a b : bool) (Fast_bitvector.equal a c : bool)];
+      "" (Fast_bitvector.Relaxed.equal a b : bool) (Fast_bitvector.Relaxed.equal a c : bool) (Fast_bitvector.Relaxed.equal a d : bool) (Fast_bitvector.Relaxed.equal a e : bool)];
   [%expect
     {|
-      (("Fast_bitvector.equal a b" true)
-       ("Fast_bitvector.equal a c" true))
+    (("Fast_bitvector.Relaxed.equal a b" true)
+     ("Fast_bitvector.Relaxed.equal a c" true)
+     ("Fast_bitvector.Relaxed.equal a d" true)
+     ("Fast_bitvector.Relaxed.equal a e" true))
     |}]
 
 let%expect_test "Relaxed" = 
@@ -269,4 +305,15 @@ let%expect_test "Relaxed" =
       (b (LE ""))
       ("Fast_bitvector.Relaxed.equal a b" false))
     |}];
+  let empty = Fast_bitvector.create ~len:0 in
+  let b = [false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
+  let a = [true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
+  let c = Fast_bitvector.Relaxed.intersect ~result:(Fast_bitvector.create ~len:2) a b in
+  print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal c empty : bool)];
+  [%expect {|
+    (equal
+      (a (LE 1))
+      (b (LE 10))
+      ("Fast_bitvector.Relaxed.equal c empty" true))
+    |}]
 

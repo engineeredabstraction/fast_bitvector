@@ -125,6 +125,8 @@ let max_length =
 let[@inline always] total_words ~length =
   (length + Element.bit_size - 1) lsr Element.shift
 
+let[@inline always] capacity t = (8*Bytes.length t) - Element.bit_size
+
 let[@inline always] total_full_words ~length = (length) lsr Element.shift
 
 let create ~len:new_length =
@@ -428,7 +430,7 @@ let init new_length ~f =
 
 let create_full ~len =
   let t = create ~len in
-  Unsafe.not ~result:t t
+  set_all t; t
 
 let copy t = Bytes.copy t
 
@@ -453,26 +455,25 @@ let copy_bits src dst =
       Unsafe.set_to dst i (Unsafe.get src i)
     done)
 
-let extend ~by v =
-  let len = length v + by in
+let extend ~len v =
+  assert (len > length v);
   let new_vec = create ~len in
   copy_bits v new_vec;
   new_vec
 
-let extend_inplace ~by v =
+let extend_inplace ~len v = 
   let prev_length = length v in
-  let new_length = prev_length + by in
-  let prev_capacity = 8 * Bytes.length v in
-  let new_vec =
-    if new_length <= prev_capacity then (
-      Element.set v 0 (Element.of_int new_length);
-      v)
-    else extend ~by v
-  in
-  for i = prev_length to pred prev_capacity do
-    Unsafe.set_to new_vec i false
-  done;
-  new_vec
+  if prev_length < len then
+    let prev_capacity = capacity v in
+    let new_vec =
+      if len <= prev_capacity then (
+        Element.set v 0 (Element.of_int len);
+        v)
+      else extend ~len v
+    in
+    new_vec
+  else
+    v
 
 let[@inline always] foldi ~init ~f t =
   let length = length t in
@@ -503,6 +504,13 @@ module Big_endian' = struct
         then '1'
         else '0'
       )
+  let to_debug_string t =
+    let length = capacity t in
+    (String.init [@inlined hint]) length (fun i ->
+        if Unsafe.get t i
+        then '1'
+        else '0'
+      )
 
   let of_string s =
     let length = String.length s in
@@ -527,6 +535,13 @@ module Little_endian' = struct
 
   let to_string t =
     let length = length t in
+    (String.init [@inlined hint]) length (fun i ->
+        if Unsafe.get t (length - (i + 1))
+        then '1'
+        else '0'
+      )
+  let to_debug_string t =
+    let length = capacity t in
     (String.init [@inlined hint]) length (fun i ->
         if Unsafe.get t (length - (i + 1))
         then '1'
@@ -586,25 +601,39 @@ let iteri ~f v = foldi ~init:() ~f:(fun _ i bit -> f i bit) v
 
 let iter ~f v = iteri ~f:(fun _i b -> f b) v
 
-let of_iter iter =
+let iter_seti ~f v = iteri ~f:(fun i b -> if b then f i ) v
+
+let of_bool_iter iter =
   let result = ref (create ~len:0) in
   iter (fun bit ->
       let i = length !result in
-      let new_result = extend_inplace !result ~by:1 in
+      let new_result = extend_inplace !result ~len:(i+1) in
       set_to new_result i bit;
       result := new_result);
   !result
 
-let to_seq v =
+let of_offset_iter iter =
+  let result = ref (create ~len:0) in
+  iter (fun i ->
+      let new_result = extend_inplace !result ~len:(i+1) in
+      set new_result i;
+      result := new_result);
+  !result
+
+let of_bool_seq seq = of_bool_iter (fun f -> Seq.iter f seq)
+
+let of_offset_seq seq = of_offset_iter (fun f -> Seq.iter f seq)
+
+let to_bool_seq v =
+  let length = length v in
   let rec aux v i () =
-    if length v > i then Seq.Cons (get v i, aux v (i + 1)) else Seq.Nil
+    if length > i then Seq.Cons (get v i, aux v (i + 1)) else Seq.Nil
   in
   aux v 0
 
-let of_seq seq =
-  Seq.fold_lefti
-    (fun v i bit ->
-      let new_result = extend_inplace v ~by:1 in
-      set_to new_result i bit;
-      (new_result))
-    (create ~len:0) seq
+let to_offset_seq v =
+  let length = length v in
+  let rec aux i () =
+    if length > i then if get v i then Seq.Cons (i, aux (i + 1)) else aux (i + 1) () else Seq.Nil
+  in
+  aux 0
