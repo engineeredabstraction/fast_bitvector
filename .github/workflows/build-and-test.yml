@@ -10,6 +10,10 @@ on:
 
 permissions: read-all
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'pull_request' || github.sha }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     permissions:
