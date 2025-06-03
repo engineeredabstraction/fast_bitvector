@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: ISC
+# SPDX-FileCopyrightText: (c) 2019 Anil Madhavapeddy <anil@recoil.org>
 name: Builds, tests & co
 
 on:
