@@ -384,20 +384,11 @@ let append a b =
   done;
   t
 
-let copy_bits src dst =
-  let length = Int.min (length src) (length dst) in
-  let byte_size = (length + 7) / 8 in
-  if byte_size > 1 then (
-    (* This assumes that bit direction in Element and bytes is the same, I guess? *)
-    Bytes.blit src Element.byte_size dst Element.byte_size (byte_size - 1);
-    for i = 8 * (length / 8) to pred length do
-      Unsafe.set_to dst i (Unsafe.get src i)
-    done)
-
 let extend v ~len =
   assert (len > length v);
   let new_vec = create ~len in
-  copy_bits v new_vec;
+  let byte_size = (length v + 7) / 8 in
+  Bytes.blit v Element.byte_size new_vec Element.byte_size byte_size;
   new_vec
 
 let extend_inplace v ~len =
@@ -529,10 +520,10 @@ let of_offset_seq seq = of_offset_iter (fun f -> Seq.iter f seq)
 
 let to_bool_seq v =
   let length = length v in
-  let rec aux v i () =
-    if length > i then Seq.Cons (get v i, aux v (i + 1)) else Seq.Nil
+  let rec aux i () =
+    if length > i then Seq.Cons (get v i, aux (i + 1)) else Seq.Nil
   in
-  aux v 0
+  aux 0
 
 let to_offset_seq v =
   let length = length v in

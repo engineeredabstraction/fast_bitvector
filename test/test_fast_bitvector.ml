@@ -153,6 +153,15 @@ let%expect_test "Extend" =
     {|
     ((a (LE 0000001111111111))
      (b (LE 0000001111111111)))
+    |}];
+  let a = [true;false;true;true;false;false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
+  let b = Fast_bitvector.extend a ~len:16 in
+  let c = b |> Fast_bitvector.to_offset_seq |> Fast_bitvector.of_offset_seq in
+  print_s [%message "" (a : Fast_bitvector.t) (c : Fast_bitvector.t)];
+  [%expect
+    {|
+    ((a (LE 1001101))
+     (c (LE 1001101)))
     |}]
 
 let%expect_test "Logical" = 
