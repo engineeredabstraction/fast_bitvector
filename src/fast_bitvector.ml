@@ -476,20 +476,48 @@ let iteri ~f v = foldi ~init:() ~f:(fun _ i bit -> f i bit) v
 
 let iter ~f v = iteri ~f:(fun _i b -> f b) v
 
-let of_iter iter =
-  let result = ref (create ~len:0) in
-  iter (fun bit ->
-      let i = length !result in
-      let new_result = extend_inplace !result ~by:1 in
-      set_to new_result i bit;
-      result := new_result);
-  !result
-
 let to_seq v =
   let rec aux v i () =
     if length v > i then Seq.Cons (get v i, aux v (i + 1)) else Seq.Nil
   in
   aux v 0
+
+let of_iter iter =
+  let output_list = ref [] in
+  let output_list_size = ref 0 in
+  let target_element = ref Element.zero in
+  let index = ref 0 in
+  iter (fun bit ->
+      if !index = Element.bit_size
+      then begin
+        output_list := !target_element :: !output_list;
+        output_list_size := succ !output_list_size;
+        target_element := Element.zero;
+        index := 0
+      end;
+      let bit = Element.of_int ((Obj.magic : bool -> int) bit) in
+      target_element := Element.logor !target_element (Element.shift_left bit !index);
+      index := !index + 1
+    );
+  if !index = Element.bit_size
+  then begin
+    output_list := !target_element :: !output_list;
+    output_list_size := succ !output_list_size;
+    target_element := Element.zero;
+    index := 0
+  end;
+  let total_bits = Element.bit_size * !output_list_size + !index in
+  let output_list, output_list_size =
+    if !index = 0
+    then !output_list, !output_list_size
+    else !target_element::!output_list, succ !output_list_size
+  in
+  let t = create ~len:total_bits in
+  ListLabels.iteri output_list
+    ~f:(fun i element ->
+        Element.set t (output_list_size - i) element
+      );
+  t
 
 let of_seq =
   let finish ~output_list ~output_list_size ~total_bits =
