@@ -81,9 +81,9 @@ module Element = struct
     in
     aux init 0 e
 
-  let fold ~init ~f e = foldi ~init ~f:(fun acc _i b -> f acc b) e
-  let iteri ~f e = foldi ~init:() ~f:(fun _acc i b -> f i b) e
-  let iter ~f e = iteri ~f:(fun _i b -> f b) e
+  let fold e ~init ~f = foldi ~init ~f:(fun acc _i b -> f acc b) e
+  let iteri e ~f = foldi ~init:() ~f:(fun _acc i b -> f i b) e
+  let iter e ~f = iteri ~f:(fun _i b -> f b) e
 
   let of_iteri iter =
     let result = ref zero in
