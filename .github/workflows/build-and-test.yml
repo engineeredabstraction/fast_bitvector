@@ -29,6 +29,7 @@ jobs:
         ocaml-compiler:
           - 5
           - 4
+          - 5,ocaml-option-flambda
 
     runs-on: ${{ matrix.os }}
 
