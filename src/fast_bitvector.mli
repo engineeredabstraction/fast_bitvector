@@ -11,7 +11,7 @@ val create_full : len:int -> t
 
 module type Ops := 
   sig
-    type 'a with_result := result:t -> 'a
+    type with_result := result:t -> t
     val set : t -> int -> unit
     val clear : t -> int -> unit
     val set_to : t -> int -> bool -> unit
@@ -20,23 +20,25 @@ module type Ops :=
 
     val equal : t -> t -> bool
 
-    val not : (t -> t) with_result
-    val and_ : (t -> t -> t) with_result
-    val or_ : (t -> t -> t) with_result
-    val xor : (t -> t -> t) with_result
+    val not : t -> with_result
+    val and_ : t -> t -> with_result
+    val or_ : t -> t -> with_result
+    val xor : t -> t -> with_result
 
     module Set : sig
       val mem : t -> int -> bool
-      val intersect : (t -> t -> t) with_result
-      val complement : (t -> t) with_result
-      val symmetric_difference : (t -> t -> t) with_result
-      val difference : (t -> t -> t) with_result
+      val intersect : t -> t -> with_result
+      val complement : t -> with_result
+      val symmetric_difference : t -> t -> with_result
+      val difference : t -> t -> with_result
     end
   end
 
 module Unsafe : Ops
 
 include Ops
+
+val qqq : t -> t -> result:t -> t
 
 (* Bit 0 first *)
 module Big_endian : sig
