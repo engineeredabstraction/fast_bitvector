@@ -491,10 +491,37 @@ let to_seq v =
   in
   aux v 0
 
-let of_seq seq =
-  Seq.fold_lefti
-    (fun v i bit ->
-      let new_result = extend_inplace v ~by:1 in
-      set_to new_result i bit;
-      (new_result))
-    (create ~len:0) seq
+let of_seq =
+  let finish ~output_list ~output_list_size ~total_bits =
+    let t = create ~len:total_bits in
+    ListLabels.iteri output_list
+      ~f:(fun i element ->
+          Element.set t (output_list_size - i) element
+          );
+    t
+  in
+  let rec extract_element (seq : _ Seq.t) ~output_list ~output_list_size ~target_element ~index =
+    if index = Element.bit_size
+    then begin
+      let output_list = target_element :: output_list in
+      let output_list_size = succ output_list_size in
+      extract_element seq ~output_list ~output_list_size ~target_element:Element.zero ~index:0
+    end else begin
+    	match seq ()  with
+    	| Nil ->
+    	  let total_bits = Element.bit_size * output_list_size + index in
+    	  let output_list, output_list_size =
+    	    if index = 0
+    	    then output_list, output_list_size
+    	    else target_element::output_list, succ output_list_size
+    	  in
+    	  finish ~output_list ~output_list_size ~total_bits
+    	| Cons (bit, remainder) ->
+    	  let bit = Element.of_int ((Obj.magic : bool -> int) bit) in
+    	  let target_element = Element.logor target_element (Element.shift_left bit index) in
+    	  let index = succ index in
+    	  extract_element remainder ~output_list ~output_list_size ~target_element ~index
+    end
+  in
+  fun seq ->
+    extract_element seq ~output_list:[] ~output_list_size:0 ~target_element:Element.zero ~index:0

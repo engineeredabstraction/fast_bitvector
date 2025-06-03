@@ -143,7 +143,7 @@ let%expect_test "Extend" =
      (b (LE 0000001111111111)))
     |}]
 
-let%expect_test "Logical" = 
+let init_mixed () =
   let f () = Fast_bitvector.create ~len:10 in
   let a0, a1, a2, a3 = f (), f (), f (), f () in
   let b0, b1, b2, b3 = f (), f (), f (), f () in
@@ -154,7 +154,10 @@ let%expect_test "Logical" =
   Fast_bitvector.set_all b3;
   let a = Fast_bitvector.append a0 (Fast_bitvector.append a1 (Fast_bitvector.append a2 a3)) in
   let b = Fast_bitvector.append b0 (Fast_bitvector.append b1 (Fast_bitvector.append b2 b3)) in
-  ();
+  a, b, c
+
+let%expect_test "Logical" = 
+  let a, b, c = init_mixed () in
   let _ = Fast_bitvector.and_ ~result:c a b in
   print_s [%message "and" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
   ];
@@ -184,18 +187,33 @@ let%expect_test "Logical" =
     |}]
 
 
-let%expect_test "Convertion roundtrips" =
-  let a = Fast_bitvector.create ~len:10 in
-  Fast_bitvector.set_all a;
-  let b =
+let%expect_test "Conversion roundtrips" =
+  let a, b, _ = init_mixed () in
+  let a_iter =
     a |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.of_iter
   in
-  let c = a |> Fast_bitvector.to_seq |> Fast_bitvector.of_seq in
+  let a_seq = a |> Fast_bitvector.to_seq |> Fast_bitvector.of_seq in
+  let b_iter =
+    b |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.of_iter
+  in
+  let b_seq = b |> Fast_bitvector.to_seq |> Fast_bitvector.of_seq in
   print_s
     [%message
-      "" (Fast_bitvector.equal a b : bool) (Fast_bitvector.equal a c : bool)];
+      "" (Fast_bitvector.equal a a_iter : bool) (Fast_bitvector.equal a a_seq : bool)
+      (Fast_bitvector.equal b b_iter : bool) (Fast_bitvector.equal b b_seq : bool)
+      (a : Fast_bitvector.t) (a_iter : Fast_bitvector.t) (a_seq : Fast_bitvector.t)
+      (b : Fast_bitvector.t) (b_iter : Fast_bitvector.t) (b_seq : Fast_bitvector.t)
+    ];
   [%expect
     {|
-      (("Fast_bitvector.equal a b" true)
-       ("Fast_bitvector.equal a c" true))
+    (("Fast_bitvector.equal a a_iter" true)
+     ("Fast_bitvector.equal a a_seq"  true)
+     ("Fast_bitvector.equal b b_iter" true)
+     ("Fast_bitvector.equal b b_seq"  true)
+     (a      (LE 1111111111111111111100000000000000000000))
+     (a_iter (LE 1111111111111111111100000000000000000000))
+     (a_seq  (LE 1111111111111111111100000000000000000000))
+     (b      (LE 1111111111000000000011111111110000000000))
+     (b_iter (LE 1111111111000000000011111111110000000000))
+     (b_seq  (LE 1111111111000000000011111111110000000000)))
     |}]
