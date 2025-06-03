@@ -93,10 +93,10 @@ val copy : t -> t
 val append : t -> t -> t
 (** Append one bitvector to another. *)
 
-val extend : len:int -> t -> t
+val extend : t -> len:int -> t
 (** Append a bitvector to [len], new bits are zeroed. *)
 
-val extend_inplace : len:int -> t -> t
+val extend_inplace : t -> len:int -> t
 (** Resize bitvector to accomodate [len] bits, or allocate bigger bitvector like
     [extend]. New bits may have random values. Invalidates input vector. *)
 
@@ -117,11 +117,11 @@ val is_full : t -> bool
 
 (** {1 Iterators} *)
 
-val fold : init:'a -> f:('a -> bool -> 'a) -> t -> 'a
+val fold : t -> init:'a -> f:('a -> bool -> 'a) -> 'a
 (** [fold ~init ~f b0...bn] is [f (f (f init b0)...) bn], where [b0...bn] are
     individual bits in a bitvector. *)
 
-val foldi : init:'a -> f:('a -> int -> bool -> 'a) -> t -> 'a
+val foldi : t -> init:'a -> f:('a -> int -> bool -> 'a) -> 'a
 (** [foldi] is [fold] with offset provided. *)
 
 val map : t -> f:(bool -> bool) -> t
@@ -131,13 +131,13 @@ val mapi : t -> f:(int -> bool -> bool) -> t
 (** [mapi ~f b0...bn] is [f 0 b0 ... f n bn], where [bi] is [i]-th bit in a
     bitvector.*)
 
-val iter : f:(bool -> unit) -> t -> unit
+val iter : t -> f:(bool -> unit) -> unit
 (** Iterate over all bits. *)
 
-val iteri : f:(int -> bool -> unit) -> t -> unit
+val iteri : t -> f:(int -> bool -> unit) -> unit
 (** Iterate over all bits and their offsets. *)
 
-val iter_seti : f:(int -> unit) -> t -> unit
+val iter_seti : t -> f:(int -> unit) -> unit
 (** Iterate over all offsets of set bits. *)
 
 (** {1 Conversions} *)

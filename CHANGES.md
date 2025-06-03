@@ -9,6 +9,7 @@
 - Added iteration to and of words, folding
 - Changed `set_all` to not override the allocated bits, beyond the vector length
 - Added a relaxed set operations to be able to work with vectors of different length; missing bits default to zero
+- Changed interface to be data-first
 
 ## 0.0.5
 - 32-bit compatible

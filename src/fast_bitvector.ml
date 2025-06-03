@@ -394,13 +394,13 @@ let copy_bits src dst =
       Unsafe.set_to dst i (Unsafe.get src i)
     done)
 
-let extend ~len v =
+let extend v ~len =
   assert (len > length v);
   let new_vec = create ~len in
   copy_bits v new_vec;
   new_vec
 
-let extend_inplace ~len v =
+let extend_inplace v ~len =
   let prev_length = length v in
   if prev_length < len then
     let prev_capacity = capacity v in
@@ -408,21 +408,21 @@ let extend_inplace ~len v =
       if len <= prev_capacity then (
         Element.set v 0 (Element.of_int len);
         v)
-      else extend ~len v
+      else extend v ~len
     in
     new_vec
   else v
 
-let[@inline always] foldi ~init ~f t =
-  let length = length t in
+let[@inline always] foldi v ~init ~f =
+  let length = length v in
   let acc = ref init in
   for i = 0 to pred length do
     (* CR smuenzel: process word at a time *)
-    acc := f !acc i (Unsafe.get t i)
+    acc := f !acc i (Unsafe.get v i)
   done;
   !acc
 
-let fold ~init ~f v = foldi ~init ~f:(fun acc _i b -> f acc b) v
+let fold v ~init ~f = foldi ~init ~f:(fun acc _i b -> f acc b) v
 
 let map t ~f =
   (init [@inlined hint]) (length t) ~f:(fun i -> f (Unsafe.get t i))
@@ -503,9 +503,9 @@ module Little_endian = struct
   let t_of_sexp = t_of_sexp
 end
 
-let iteri ~f v = foldi ~init:() ~f:(fun _ i bit -> f i bit) v
-let iter ~f v = iteri ~f:(fun _i b -> f b) v
-let iter_seti ~f v = iteri ~f:(fun i b -> if b then f i) v
+let iteri v ~f = foldi ~init:() ~f:(fun _ i bit -> f i bit) v
+let iter v ~f = iteri ~f:(fun _i b -> f b) v
+let iter_seti v ~f = iteri ~f:(fun i b -> if b then f i) v
 
 let of_bool_iter iter =
   let result = ref (create ~len:0) in
