@@ -325,10 +325,17 @@ let append a b =
   let length_a = length a in
   let length_b = length b in
   let length = length_a + length_b in
+  let words_a = total_words ~length:length_a in
+  let words_b = total_words ~length:length_b in
   let t = create ~len:length in
-  Bytes.blit a Element.byte_size t Element.byte_size ((length_a + 7) / 8);
-  for i = 0 to pred length_b do
+  for i = 1 to words_a do
+    Element.set t i (Element.get a i)
+  done;
+  for i = 0 to (Int.min length_b Element.bit_size) - 1 do
     Unsafe.set_to t (length_a + i) (Unsafe.get b i)
+  done;
+  for i = 2 to words_b do
+    Element.set t (words_a + i - 1) (Element.get b i)
   done;
   t
 

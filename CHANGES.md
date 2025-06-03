@@ -1,4 +1,7 @@
 
+## Development
+- Fix big-endian architecture compatibility
+
 ## 0.0.5
 - 32-bit compatible
 - Properly fix append
