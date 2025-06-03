@@ -209,21 +209,34 @@ module _ : Make_result =
 module Explicit_result = struct
   type t' = t
 
-  type _ t = result: t' -> t'
+  type _ t = result: t' -> unit
 
   let [@inline always] wrap_1 (f : t' -> t' -> unit) : (t' -> 'a t) =
     fun bv ~result ->
-      f bv result;
-      result
+      f bv result
 
   let [@inline always] wrap_2 (f : t' -> t' -> t' -> unit) : (t' -> t' -> 'a t) =
     fun bv1 bv2 ~result ->
-      f bv1 bv2 result;
-      result
+      f bv1 bv2 result
 end
 
 module _ : Make_result =
   Explicit_result
+
+module Inplace_result = struct
+  type t' = t
+
+  type _ t = unit
+
+  let [@inline always] wrap_1 (f : t' -> t' -> unit) : (t' -> 'a t) =
+    fun bv ->
+      f bv bv
+
+  let [@inline always] wrap_2 (f : t' -> t' -> t' -> unit) : (t' -> t' -> 'a t) =
+    fun bv1 bv2 ->
+      f bv1 bv2 bv1
+
+end
 
 module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
   let [@inline always] logop1 ~f =
@@ -350,29 +363,39 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
 
 end
 
-module Unsafe = Ops(struct
-    let [@inline always] index _ _ = ()
-    let [@inline always] length2 a _ = length a
-    let [@inline always] length3 a _ _ = length a
-  end)(Explicit_result)
+module Check_none = struct
+  let [@inline always] index _ _ = ()
+  let [@inline always] length2 a _ = length a
+  let [@inline always] length3 a _ _ = length a
+end
 
-include Ops(struct
-    let [@inline always] index t i = assert (0 <= i && i < length t)
+module Check_all = struct
+  let [@inline always] index t i = assert (0 <= i && i < length t)
 
-    let [@inline always] length2 a b =
-      let la = length a in
-      let lb = length b in
-      assert (la = lb);
-      la
+  let [@inline always] length2 a b =
+    let la = length a in
+    let lb = length b in
+    assert (la = lb);
+    la
 
-    let [@inline always] length3 a b c =
-      let la = length a in
-      let lb = length b in
-      let lc = length c in
-      assert (la = lb);
-      assert (la = lc);
-      la
-    end)(Explicit_result)
+  let [@inline always] length3 a b c =
+    let la = length a in
+    let lb = length b in
+    let lc = length c in
+    assert (la = lb);
+    assert (la = lc);
+    la
+end
+
+module Unsafe = Ops(Check_none)(Explicit_result)
+
+include Ops(Check_all)(Explicit_result)
+
+module Inplace = struct
+  module Unsafe = Ops(Check_none)(Inplace_result)
+
+  include Ops(Check_all)(Inplace_result)
+end
 
 let equal a b =
   let la = length a in
@@ -388,7 +411,8 @@ let init new_length ~f =
 
 let create_full ~len =
   let t = create ~len in
-  Unsafe.not ~result:t t
+  Unsafe.not ~result:t t;
+  t
 
 let copy t =
   Bytes.copy t

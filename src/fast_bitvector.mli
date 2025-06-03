@@ -11,7 +11,7 @@ val create_full : len:int -> t
 
 module type Ops := 
   sig
-    type with_result := result:t -> t
+    type with_result
     val set : t -> int -> unit
     val clear : t -> int -> unit
     val set_to : t -> int -> bool -> unit
@@ -35,10 +35,20 @@ module type Ops :=
   end
 
 module Unsafe : Ops
+  with type with_result := result:t -> unit
 
 include Ops
+  with type with_result := result:t -> unit
 
-val qqq : t -> t -> result:t -> t
+module Inplace : sig
+  module Unsafe : Ops
+    with type with_result := unit
+
+  include Ops
+    with type with_result := unit
+end
+
+val qqq : t -> t -> result:t -> unit
 
 (* Bit 0 first *)
 module Big_endian : sig
