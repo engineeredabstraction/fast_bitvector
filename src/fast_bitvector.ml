@@ -112,6 +112,7 @@ let clear_all t =
   loop_set t Element.zero
 
 external (&&&) : bool -> bool -> bool = "%andint"
+external (|||) : bool -> bool -> bool = "%orint"
 
 let [@inline always] foldop1 ~init ~f ~final a =
   let length = length a in
@@ -213,11 +214,11 @@ module Explicit_result = struct
 
   let [@inline always] wrap_1 (f : t' -> t' -> unit) : (t' -> 'a t) =
     fun bv ~result ->
-      f bv result
+      (f [@inlined hint]) bv result
 
   let [@inline always] wrap_2 (f : t' -> t' -> t' -> unit) : (t' -> t' -> 'a t) =
     fun bv1 bv2 ~result ->
-      f bv1 bv2 result
+      (f [@inlined hint]) bv1 bv2 result
 end
 
 module _ : Make_result =
@@ -230,11 +231,11 @@ module Inplace_result = struct
 
   let [@inline always] wrap_1 (f : t' -> t' -> unit) : (t' -> 'a t) =
     fun bv ->
-      f bv bv
+      (f [@inlined hint]) bv bv
 
   let [@inline always] wrap_2 (f : t' -> t' -> t' -> unit) : (t' -> t' -> 'a t) =
     fun bv1 bv2 ->
-      f bv1 bv2 bv1
+      (f [@inlined hint]) bv1 bv2 bv1
 
 end
 
@@ -370,20 +371,31 @@ module Check_none = struct
 end
 
 module Check_all = struct
-  let [@inline always] index t i = assert (0 <= i && i < length t)
+  let [@cold] raise_index_out_of_bounds ~i ~length =
+    failwithf "index %d out of bounds [0,%d)" i length
+
+  let [@inline always] index t i =
+    let length = length t in
+    if (i >= length) ||| (i < 0) then raise_index_out_of_bounds ~i ~length
+
+  let [@cold] raise_length_mismatch2 ~length1 ~length2 =
+    failwithf "length mismatch: %d <> %d" length1 length2
 
   let [@inline always] length2 a b =
     let la = length a in
     let lb = length b in
-    assert (la = lb);
+    if la <> lb then raise_length_mismatch2 ~length1:la ~length2:lb;
     la
+
+  let [@cold] raise_length_mismatch3 ~length1 ~length2 ~length3 =
+    failwithf "length mismatch: %d, %d, %d must be equal" length1 length2 length3
 
   let [@inline always] length3 a b c =
     let la = length a in
     let lb = length b in
     let lc = length c in
-    assert (la = lb);
-    assert (la = lc);
+    if (la <> lb) ||| (la <> lc)
+    then raise_length_mismatch3 ~length1:la ~length2:lb ~length3:lc;
     la
 end
 
@@ -533,4 +545,4 @@ module Little_endian = struct
 end
 
 let qqq a b ~result =
-  Unsafe.Set.intersect a b ~result
+  Set.intersect a b ~result

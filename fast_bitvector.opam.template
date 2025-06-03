@@ -3,6 +3,7 @@ depends: [
   (("ocaml" {>= "4.14.0" & <"5.1.0"}) | ("ocaml" {>= "5.1.0"} & "ocaml_intrinsics_kernel" { arch != "arm32" & arch != "x86_32" }))
   "ppx_sexp_conv"
   "ppx_sexp_value" { >= "v0.16.0" }
+  "ppx_cold"
   "expect_test_helpers_core" {with-test}
   "ppx_jane" {with-test}
   "odoc" {with-doc}
