@@ -2,7 +2,7 @@
  * SPDX-FileCopyrightText: (c) 2025 Stefan Muenzel
  *)
 
-let (=) = Int.equal
+let ( = ) = Int.equal
 
 type t = Bytes.t
 
@@ -14,30 +14,22 @@ module type Element = sig
   val bit_size : int
   val byte_size : int
   val shift : int
-
   val equal : t -> t -> bool
-
   val to_int : t -> int
   val of_int : int -> t
-
   val get : bytes -> int -> t
   val set : bytes -> int -> t -> unit
-
   val zero : t
   val one : t
   val minus_one : t
-
   val sub : t -> t -> t
   val shift_left : t -> int -> t
   val shift_right_logical : t -> int -> t
-
   val logand : t -> t -> t
   val logor : t -> t -> t
   val logxor : t -> t -> t
   val lognot : t -> t
-
   val count_set_bits : t -> int
-
   val sexp_of_t : t -> Sexplib0.Sexp.t
 end
 
@@ -51,11 +43,9 @@ module Element_32 = struct
   external get : bytes -> int -> t = "%caml_bytes_get32u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set32u"
 
-  let set b i v = set b (i*byte_size) v
-  let get b i = get b (i*byte_size)
-
+  let set b i v = set b (i * byte_size) v
+  let get b i = get b (i * byte_size)
   let count_set_bits = Popcount.count_set_bits_32
-
   let sexp_of_t = Sexplib0.Sexp_conv.sexp_of_int32
 end
 
@@ -69,11 +59,10 @@ module Element_64 = struct
   external get : bytes -> int -> t = "%caml_bytes_get64u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set64u"
 
-  let set b i v = set b (i*byte_size) v
-  let get b i = get b (i*byte_size)
-
+  let set b i v = set b (i * byte_size) v
+  let get b i = get b (i * byte_size)
   let count_set_bits = Popcount.count_set_bits_64
-  let sexp_of_t = Sexplib0.Sexp_conv.sexp_of_int64 
+  let sexp_of_t = Sexplib0.Sexp_conv.sexp_of_int64
 end
 
 module Element = struct
@@ -96,25 +85,23 @@ module Element = struct
   let iteri ~f e = foldi ~init:() ~f:(fun _acc i b -> f i b) e
   let iter ~f e = iteri ~f:(fun _i b -> f b) e
 
-  let of_iteri iter = 
+  let of_iteri iter =
     let result = ref zero in
-    iter (fun (i,bit) ->
+    iter (fun (i, bit) ->
         let bit = bit |> (Obj.magic : bool -> int) |> of_int in
         let bit = shift_left bit i in
-        result := logor bit !result
-    );
+        result := logor bit !result);
     !result
 
-
-  let of_iter iter =
-    of_iteri (Iter.zip_i iter)
+  let of_iter iter = of_iteri (Iter.zip_i iter)
 
   let%test_unit _ =
     let seven = of_int 7 in
     let restored = of_iter (fun f -> iter ~f seven) in
     [%test_eq: t] seven restored
 
-  let[@inline always] get_or_zero e i word_size = (if i <= word_size then (get e i) else zero)
+  let[@inline always] get_or_zero e i word_size =
+    if i <= word_size then get e i else zero
 end
 
 let length t = Element.get t 0 |> Element.to_int
@@ -125,14 +112,15 @@ let max_length =
 let[@inline always] total_words ~length =
   (length + Element.bit_size - 1) lsr Element.shift
 
-let[@inline always] capacity t = (8*Bytes.length t) - Element.bit_size
-
-let[@inline always] total_full_words ~length = (length) lsr Element.shift
+let[@inline always] capacity t = (8 * Bytes.length t) - Element.bit_size
+let[@inline always] total_full_words ~length = length lsr Element.shift
 
 let create ~len:new_length =
-  if new_length > max_length
-  then failwithf "length %d exceeds maximum length %d" new_length max_length;
-  let total_data_words = (new_length + Element.bit_size - 1) / Element.bit_size in
+  if new_length > max_length then
+    failwithf "length %d exceeds maximum length %d" new_length max_length;
+  let total_data_words =
+    (new_length + Element.bit_size - 1) / Element.bit_size
+  in
   let total_words = total_data_words + 1 in
   let t = Bytes.init (total_words * Element.byte_size) (fun _ -> '\x00') in
   Element.set t 0 (Element.of_int new_length);
@@ -144,10 +132,11 @@ let set_all result =
   let total_full_words = total_full_words ~length in
   let remainder_length = length - (Element.bit_size * total_full_words) in
   for i = 1 to total_full_words do
-      Element.set result i Element.minus_one
+    Element.set result i Element.minus_one
   done;
-  if remainder_length >= 0 then 
-    Element.set result (total_full_words+1) (Element.of_iter (Iter.repeat true |> Iter.take remainder_length))
+  if remainder_length >= 0 then
+    Element.set result (total_full_words + 1)
+      (Element.of_iter (Iter.repeat true |> Iter.take remainder_length))
 
 let clear_all result =
   let length = length result in
@@ -156,151 +145,122 @@ let clear_all result =
     Element.set result i Element.zero
   done
 
-external (&&&) : bool -> bool -> bool = "%andint"
+external ( &&& ) : bool -> bool -> bool = "%andint"
 
-let foldi ~init ~f v = 
+let foldi ~init ~f v =
   let length = length v in
   let total_words = total_words ~length in
   let acc = ref init in
   for i = 1 to total_words do
-    acc :=
-      (f [@inlined hint])
-        !acc
-        i 
-        (Element.get v i)
+    acc := (f [@inlined hint]) !acc i (Element.get v i)
   done;
   !acc
 
-let [@inline always] foldop1 ~init ~f ~final a =
+let[@inline always] foldop1 ~init ~f ~final a =
   let length = length a in
   let total_words = total_words ~length in
   let acc = ref init in
   for i = 1 to pred total_words do
-    acc :=
-      (f [@inlined hint])
-        !acc
-        (Element.get a i)
+    acc := (f [@inlined hint]) !acc (Element.get a i)
   done;
   let remaining = length land (Element.bit_size - 1) in
-  let mask = Element.sub (Element.shift_left Element.one remaining) Element.one in
-  (f [@inlined hint])
-    !acc
-    (final ~mask (Element.get a total_words))
+  let mask =
+    Element.sub (Element.shift_left Element.one remaining) Element.one
+  in
+  (f [@inlined hint]) !acc (final ~mask (Element.get a total_words))
 
 let popcount t =
-  foldop1 t 
-    ~init:0
-    ~f:(fun acc v -> acc + (Element.count_set_bits v))
+  foldop1 t ~init:0
+    ~f:(fun acc v -> acc + Element.count_set_bits v)
     ~final:(fun ~mask a -> Element.logand mask a)
 
 let is_empty t =
-  foldop1 t
-    ~init:true
-    ~f:(fun acc v -> acc &&& (Element.equal v Element.zero))
+  foldop1 t ~init:true
+    ~f:(fun acc v -> acc &&& Element.equal v Element.zero)
     ~final:(fun ~mask a -> Element.logand mask a)
 
 let is_full t =
-  foldop1 t
-    ~init:true
-    ~f:(fun acc v -> acc &&& (Element.equal v Element.minus_one))
+  foldop1 t ~init:true
+    ~f:(fun acc v -> acc &&& Element.equal v Element.minus_one)
     ~final:(fun ~mask a -> Element.logor (Element.lognot mask) a)
-    
+
 module type Check = sig
   val index : t -> int -> unit
-
   val length2 : t -> t -> int
   val length3 : t -> t -> t -> int
 end
 
-let [@inline always] logop1_relaxed ~f a result =
-  let length = length result 
-    and total_words_a = total_words ~length:(length a) in
+let[@inline always] logop1_relaxed ~f a result =
+  let length = length result
+  and total_words_a = total_words ~length:(length a) in
   let total_words = total_words ~length in
   for i = 1 to total_words do
-    Element.set result i
-      (f
-          (Element.get_or_zero a i total_words_a)
-      )
+    Element.set result i (f (Element.get_or_zero a i total_words_a))
   done;
   result
 
-let [@inline always] logop2_relaxed ~f a b result =
+let[@inline always] logop2_relaxed ~f a b result =
   let total_words = total_words ~length:(length result)
-    and total_words_a = total_words ~length:(length a) 
-    and total_words_b = total_words ~length:(length b) in
+  and total_words_a = total_words ~length:(length a)
+  and total_words_b = total_words ~length:(length b) in
   for i = 1 to total_words do
     Element.set result i
       (f
-          (Element.get_or_zero a i total_words_a)
-          (Element.get_or_zero b i total_words_b)
-      )
+         (Element.get_or_zero a i total_words_a)
+         (Element.get_or_zero b i total_words_b))
   done;
   result
 
-module [@inline always] Ops(Check : Check) = struct
-  let [@inline always] logop1 ~f a result =
+module [@inline always] Ops (Check : Check) = struct
+  let[@inline always] logop1 ~f a result =
     let length = Check.length2 a result in
     let total_words = total_words ~length in
     for i = 1 to total_words do
-      Element.set result i
-        (f
-           (Element.get a i)
-        )
+      Element.set result i (f (Element.get a i))
     done;
     result
 
-  let [@inline always] logop2 ~f a b result =
+  let[@inline always] logop2 ~f a b result =
     let length = Check.length3 a b result in
     let total_words = total_words ~length in
     for i = 1 to total_words do
-      Element.set result i
-        (f
-           (Element.get a i)
-           (Element.get b i)
-        )
+      Element.set result i (f (Element.get a i) (Element.get b i))
     done;
     result
 
-  let [@inline always] foldop2 ~init ~f ~final a b =
+  let[@inline always] foldop2 ~init ~f ~final a b =
     let length = Check.length2 a b in
     let total_words = total_words ~length in
     let acc = ref init in
     for i = 1 to total_words do
-      acc :=
-        (f [@inlined hint])
-          !acc
-          (Element.get a i)
-          (Element.get b i)
+      acc := (f [@inlined hint]) !acc (Element.get a i) (Element.get b i)
     done;
     let remaining = length land (Element.bit_size - 1) in
-    let mask = Element.sub (Element.shift_left Element.one remaining) Element.one in
-    (f [@inlined hint])
-      !acc
+    let mask =
+      Element.sub (Element.shift_left Element.one remaining) Element.one
+    in
+    (f [@inlined hint]) !acc
       (final ~mask (Element.get a total_words))
       (final ~mask (Element.get b total_words))
 
-  let [@inline always] get t i =
+  let[@inline always] get t i =
     Check.index t i;
     let index = 1 + (i lsr Element.shift) in
     let subindex = i land (Element.bit_size - 1) in
     let v = Element.get t index in
-    Element.logand
-      (Element.shift_right_logical v subindex)
-      Element.one
+    Element.logand (Element.shift_right_logical v subindex) Element.one
     |> Element.to_int
     |> (Obj.magic : int -> bool)
 
-  let [@inline always] set t i =
+  let[@inline always] set t i =
     Check.index t i;
     let index = 1 + (i lsr Element.shift) in
     let subindex = i land (Element.bit_size - 1) in
     let v = Element.get t index in
-    let v' =
-      Element.logor v (Element.shift_left Element.one subindex)
-    in
+    let v' = Element.logor v (Element.shift_left Element.one subindex) in
     Element.set t index v'
 
-  let [@inline always] set_to t i b =
+  let[@inline always] set_to t i b =
     Check.index t i;
     let b = Element.of_int ((Obj.magic : bool -> int) b) in
     let index = 1 + (i lsr Element.shift) in
@@ -308,112 +268,90 @@ module [@inline always] Ops(Check : Check) = struct
     let v = Element.get t index in
     let mask = Element.lognot (Element.shift_left Element.one subindex) in
     let v' =
-      Element.logor
-        (Element.logand v mask)
-        (Element.shift_left b subindex)
+      Element.logor (Element.logand v mask) (Element.shift_left b subindex)
     in
     Element.set t index v'
 
-  let [@inline always] clear t i =
+  let[@inline always] clear t i =
     Check.index t i;
     let index = 1 + (i lsr Element.shift) in
     let subindex = i land (Element.bit_size - 1) in
     let v = Element.get t index in
     let v' =
-      Element.logand v (Element.lognot (Element.shift_left Element.one subindex))
+      Element.logand v
+        (Element.lognot (Element.shift_left Element.one subindex))
     in
     Element.set t index v'
 
   let equal a b =
-    foldop2 a b
-      ~init:true
+    foldop2 a b ~init:true
       ~f:(fun acc a b ->
-          acc
-          &&&
-          (Element.equal Element.zero (Element.logxor a b))
-        )
+        acc &&& Element.equal Element.zero (Element.logxor a b))
       ~final:(fun ~mask a -> Element.logand mask a)
 
-  let not ~result a =
-    logop1 ~f:Element.lognot a result
-
-  let and_ ~result a b =
-    logop2 ~f:Element.logand a b result
-
-  let or_ ~result a b =
-    logop2 ~f:Element.logor a b result
-
-  let xor ~result a b =
-    logop2 ~f:Element.logxor a b result
+  let not ~result a = logop1 ~f:Element.lognot a result
+  let and_ ~result a b = logop2 ~f:Element.logand a b result
+  let or_ ~result a b = logop2 ~f:Element.logor a b result
+  let xor ~result a b = logop2 ~f:Element.logxor a b result
 
   module Set = struct
     let mem = get
-
     let intersect = and_
     let complement = not
     let symmetric_difference = xor
 
     let difference ~result a b =
-      logop2 ~f:(fun a b ->
-          Element.logand a (Element.lognot b)
-        ) a b result
-    
+      logop2 ~f:(fun a b -> Element.logand a (Element.lognot b)) a b result
+
     let union = or_
   end
-
 end
 
-module Unsafe = Ops(struct
-    let [@inline always] index _ _ = ()
-    let [@inline always] length2 _ r = length r
-    let [@inline always] length3 _ _ r = length r
-  end)
+module Unsafe = Ops (struct
+  let[@inline always] index _ _ = ()
+  let[@inline always] length2 _ r = length r
+  let[@inline always] length3 _ _ r = length r
+end)
 
-include Ops(struct
-    let [@inline always] index t i = assert (0 <= i && i < length t)
+include Ops (struct
+  let[@inline always] index t i = assert (0 <= i && i < length t)
 
-    let [@inline always] length2 a b =
-      let la = length a in
-      let lb = length b in
-      assert (la = lb);
-      la
+  let[@inline always] length2 a b =
+    let la = length a in
+    let lb = length b in
+    assert (la = lb);
+    la
 
-    let [@inline always] length3 a b c =
-      let la = length a in
-      let lb = length b in
-      let lc = length c in
-      assert (la = lb);
-      assert (la = lc);
-      la
-    end)
+  let[@inline always] length3 a b c =
+    let la = length a in
+    let lb = length b in
+    let lc = length c in
+    assert (la = lb);
+    assert (la = lc);
+    la
+end)
 
 module Relaxed = struct
   let mem = get
-
-  let intersect ~result a b =  logop2_relaxed ~f:Element.logand a b result
-  let union ~result a b  =  logop2_relaxed ~f:Element.logor a b result
+  let intersect ~result a b = logop2_relaxed ~f:Element.logand a b result
+  let union ~result a b = logop2_relaxed ~f:Element.logor a b result
   let complement ~result a = logop1_relaxed ~f:Element.lognot a result
-  let symmetric_difference ~result a b  = logop2_relaxed ~f:Element.logxor a b result
+
+  let symmetric_difference ~result a b =
+    logop2_relaxed ~f:Element.logxor a b result
 
   let difference ~result a b =
-    logop2_relaxed ~f:(fun a b ->
-        Element.logand a (Element.lognot b)
-      ) a b result
-  
-  let equal a b =
-    let a, b=  if length a >= length b then
-      a, b
-    else
-      b, a in
-    let total_words_b = total_words ~length:(length b) in
-    foldi a
-      ~init:true
-      ~f:(fun acc i a ->
-          acc
-          &&&
-          (Element.equal Element.zero (Element.logxor a (Element.get_or_zero b i total_words_b)))
-        )
+    logop2_relaxed
+      ~f:(fun a b -> Element.logand a (Element.lognot b))
+      a b result
 
+  let equal a b =
+    let a, b = if length a >= length b then (a, b) else (b, a) in
+    let total_words_b = total_words ~length:(length b) in
+    foldi a ~init:true ~f:(fun acc i a ->
+        acc
+        &&& Element.equal Element.zero
+              (Element.logxor a (Element.get_or_zero b i total_words_b)))
 end
 
 let equal a b =
@@ -424,13 +362,14 @@ let equal a b =
 let init new_length ~f =
   let t = create ~len:new_length in
   for i = 0 to new_length - 1 do
-    Unsafe.set_to t i ((f [@inlined hint]) i);
+    Unsafe.set_to t i ((f [@inlined hint]) i)
   done;
   t
 
 let create_full ~len =
   let t = create ~len in
-  set_all t; t
+  set_all t;
+  t
 
 let copy t = Bytes.copy t
 
@@ -461,7 +400,7 @@ let extend ~len v =
   copy_bits v new_vec;
   new_vec
 
-let extend_inplace ~len v = 
+let extend_inplace ~len v =
   let prev_length = length v in
   if prev_length < len then
     let prev_capacity = capacity v in
@@ -472,8 +411,7 @@ let extend_inplace ~len v =
       else extend ~len v
     in
     new_vec
-  else
-    v
+  else v
 
 let[@inline always] foldi ~init ~f t =
   let length = length t in
@@ -500,34 +438,22 @@ module Big_endian' = struct
   let to_string t =
     let length = length t in
     (String.init [@inlined hint]) length (fun i ->
-        if Unsafe.get t i
-        then '1'
-        else '0'
-      )
+        if Unsafe.get t i then '1' else '0')
+
   let to_debug_string t =
     let length = capacity t in
     (String.init [@inlined hint]) length (fun i ->
-        if Unsafe.get t i
-        then '1'
-        else '0'
-      )
+        if Unsafe.get t i then '1' else '0')
 
   let of_string s =
     let length = String.length s in
-    init length
-      ~f:(fun i ->
-          match String.unsafe_get s i with
-          | '0' -> false
-          | '1' -> true
-          | other ->
-            failwithf "invalid char '%c'" other
-        )
+    init length ~f:(fun i ->
+        match String.unsafe_get s i with
+        | '0' -> false
+        | '1' -> true
+        | other -> failwithf "invalid char '%c'" other)
 
-  let sexp_of_t t =
-    Sexp.List
-      [ Sexp.Atom "BE"
-      ; Sexp.Atom (to_string t)
-      ]
+  let sexp_of_t t = Sexp.List [ Sexp.Atom "BE"; Sexp.Atom (to_string t) ]
 end
 
 module Little_endian' = struct
@@ -536,52 +462,32 @@ module Little_endian' = struct
   let to_string t =
     let length = length t in
     (String.init [@inlined hint]) length (fun i ->
-        if Unsafe.get t (length - (i + 1))
-        then '1'
-        else '0'
-      )
+        if Unsafe.get t (length - (i + 1)) then '1' else '0')
+
   let to_debug_string t =
     let length = capacity t in
     (String.init [@inlined hint]) length (fun i ->
-        if Unsafe.get t (length - (i + 1))
-        then '1'
-        else '0'
-      )
+        if Unsafe.get t (length - (i + 1)) then '1' else '0')
 
   let of_string s =
     let length = String.length s in
     let result =
-      init length
-        ~f:(fun i ->
-            match String.get s (length - (i + 1)) with
-            | '0' -> false
-            | '1' -> true
-            | other ->
-              failwithf "invalid char '%c'" other
-          )
+      init length ~f:(fun i ->
+          match String.get s (length - (i + 1)) with
+          | '0' -> false
+          | '1' -> true
+          | other -> failwithf "invalid char '%c'" other)
     in
     result
 
-  let sexp_of_t t =
-    Sexp.List
-      [ Sexp.Atom "LE"
-      ; Sexp.Atom (to_string t)
-      ]
+  let sexp_of_t t = Sexp.List [ Sexp.Atom "LE"; Sexp.Atom (to_string t) ]
 end
 
 let t_of_sexp = function
-  | Sexp.List
-      [ Sexp.Atom "BE"
-      ; Sexp.Atom s
-      ] -> Big_endian'.of_string s
-  | Sexp.List
-      [ Sexp.Atom "LE"
-      ; Sexp.Atom s
-      ]
-  | Sexp.Atom s ->
-    Little_endian'.of_string s
-  | other ->
-    Sexp_conv.of_sexp_error "not a bitvector" other
+  | Sexp.List [ Sexp.Atom "BE"; Sexp.Atom s ] -> Big_endian'.of_string s
+  | Sexp.List [ Sexp.Atom "LE"; Sexp.Atom s ] | Sexp.Atom s ->
+      Little_endian'.of_string s
+  | other -> Sexp_conv.of_sexp_error "not a bitvector" other
 
 let sexp_of_t = Little_endian'.sexp_of_t
 
@@ -598,16 +504,14 @@ module Little_endian = struct
 end
 
 let iteri ~f v = foldi ~init:() ~f:(fun _ i bit -> f i bit) v
-
 let iter ~f v = iteri ~f:(fun _i b -> f b) v
-
-let iter_seti ~f v = iteri ~f:(fun i b -> if b then f i ) v
+let iter_seti ~f v = iteri ~f:(fun i b -> if b then f i) v
 
 let of_bool_iter iter =
   let result = ref (create ~len:0) in
   iter (fun bit ->
       let i = length !result in
-      let new_result = extend_inplace !result ~len:(i+1) in
+      let new_result = extend_inplace !result ~len:(i + 1) in
       set_to new_result i bit;
       result := new_result);
   !result
@@ -615,13 +519,12 @@ let of_bool_iter iter =
 let of_offset_iter iter =
   let result = ref (create ~len:0) in
   iter (fun i ->
-      let new_result = extend_inplace !result ~len:(i+1) in
+      let new_result = extend_inplace !result ~len:(i + 1) in
       set new_result i;
       result := new_result);
   !result
 
 let of_bool_seq seq = of_bool_iter (fun f -> Seq.iter f seq)
-
 let of_offset_seq seq = of_offset_iter (fun f -> Seq.iter f seq)
 
 let to_bool_seq v =
@@ -634,6 +537,8 @@ let to_bool_seq v =
 let to_offset_seq v =
   let length = length v in
   let rec aux i () =
-    if length > i then if get v i then Seq.Cons (i, aux (i + 1)) else aux (i + 1) () else Seq.Nil
+    if length > i then
+      if get v i then Seq.Cons (i, aux (i + 1)) else aux (i + 1) ()
+    else Seq.Nil
   in
   aux 0
