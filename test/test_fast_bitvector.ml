@@ -143,11 +143,11 @@ let%expect_test "Extend" =
      (b (LE 0000001111111111)))
     |}]
 
-let init_mixed () =
-  let f () = Fast_bitvector.create ~len:10 in
+let init_mixed ?(len=10)() =
+  let f () = Fast_bitvector.create ~len in
   let a0, a1, a2, a3 = f (), f (), f (), f () in
   let b0, b1, b2, b3 = f (), f (), f (), f () in
-  let c = Fast_bitvector.create ~len:40 in
+  let c = Fast_bitvector.create ~len:(4 * len) in
   Fast_bitvector.set_all a2;
   Fast_bitvector.set_all a3;
   Fast_bitvector.set_all b1;
@@ -217,3 +217,40 @@ let%expect_test "Conversion roundtrips" =
      (b_iter (LE 1111111111000000000011111111110000000000))
      (b_seq  (LE 1111111111000000000011111111110000000000)))
     |}]
+
+let%expect_test "Conversion roundtrips (long)" =
+  let a, b, _ = init_mixed ~len:65 () in
+  let a_iter =
+    a |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.of_iter
+  in
+  let a_seq = a |> Fast_bitvector.to_seq |> Fast_bitvector.of_seq in
+  let b_iter =
+    b |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.of_iter
+  in
+  let b_seq = b |> Fast_bitvector.to_seq |> Fast_bitvector.of_seq in
+  print_s
+    [%message
+      "" (Fast_bitvector.equal a a_iter : bool) (Fast_bitvector.equal a a_seq : bool)
+      (Fast_bitvector.equal b b_iter : bool) (Fast_bitvector.equal b b_seq : bool)
+      (a : Fast_bitvector.t) (a_iter : Fast_bitvector.t) (a_seq : Fast_bitvector.t)
+      (b : Fast_bitvector.t) (b_iter : Fast_bitvector.t) (b_seq : Fast_bitvector.t)
+    ];
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Invalid_argument Bytes.blit)
+  Raised at Stdlib.invalid_arg in file "stdlib.ml" (inlined), line 30, characters 20-45
+  Called from Stdlib__Bytes.blit in file "bytes.ml", line 99, characters 7-31
+  Called from Fast_bitvector.copy_bits in file "src/fast_bitvector.ml", line 341, characters 4-74
+  Called from Fast_bitvector.extend in file "src/fast_bitvector.ml", line 349, characters 2-21
+  Called from Fast_bitvector.extend_inplace in file "src/fast_bitvector.ml", line 360, characters 9-21
+  Called from Fast_bitvector.of_iter.(fun) in file "src/fast_bitvector.ml", line 483, characters 23-51
+  Called from Fast_bitvector.iteri.(fun) in file "src/fast_bitvector.ml" (inlined), line 475, characters 51-58
+  Called from Fast_bitvector.foldi in file "src/fast_bitvector.ml" (inlined), line 372, characters 11-36
+  Called from Fast_bitvector.iteri in file "src/fast_bitvector.ml", line 475, characters 17-61
+  Called from Fast_bitvector.of_iter in file "src/fast_bitvector.ml", lines 481-485, characters 2-27
+  Called from Test_fast_bitvector.(fun) in file "test/test_fast_bitvector.ml", line 224, characters 4-72
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
