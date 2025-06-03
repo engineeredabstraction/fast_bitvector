@@ -482,42 +482,66 @@ let to_seq v =
   in
   aux v 0
 
+module Builder = struct
+  type t =
+    { mutable current : int
+    ; mutable current_index : int
+    ; mutable list_bits : int
+    ; mutable rev_list : int list
+    }
+
+  let to_bitvector t =
+    assert (Sys.int_size <= Element.bit_size);
+    let len = t.list_bits + t.current_index in
+    let bv = create ~len in
+    for j = 0 to t.current_index - 1 do
+      Unsafe.set_to bv (len - t.current_index + j) ((t.current lsr j) land 1 = 1)
+    done;
+    let list_bits = t.list_bits in
+    let rec aux bv rev_list ~list_bits ~i =
+      match rev_list with
+      | [] -> ()
+      | x :: xs ->
+        for j = 0 to Sys.int_size - 1 do
+          Unsafe.set_to bv (list_bits - i - Sys.int_size + j) ((x lsr j) land 1 = 1)
+        done;
+        aux bv xs ~i:(i + Sys.int_size) ~list_bits
+    in
+    aux bv t.rev_list ~list_bits ~i:0;
+    bv
+
+  let create () =
+    { current = 0
+    ; current_index = 0
+    ; list_bits = 0
+    ; rev_list = []
+    }
+
+  let reset t = 
+    t.current <- 0;
+    t.current_index <- 0;
+    t.rev_list <- [];
+    t.list_bits <- 0;
+    ()
+
+  let push t bit =
+    let bit = (Obj.magic : bool -> int) bit in
+    t.current <- t.current lor (bit lsl t.current_index);
+    t.current_index <- succ t.current_index;
+    if t.current_index = Sys.int_size 
+    then begin
+      t.rev_list <- t.current :: t.rev_list;
+      t.current <- 0;
+      t.current_index <- 0;
+      t.list_bits <- t.list_bits + Sys.int_size
+    end
+
+end
+
 let of_iter iter =
-  let output_list = ref [] in
-  let output_list_size = ref 0 in
-  let target_element = ref Element.zero in
-  let index = ref 0 in
-  iter (fun bit ->
-      if !index = Element.bit_size
-      then begin
-        output_list := !target_element :: !output_list;
-        output_list_size := succ !output_list_size;
-        target_element := Element.zero;
-        index := 0
-      end;
-      let bit = Element.of_int ((Obj.magic : bool -> int) bit) in
-      target_element := Element.logor !target_element (Element.shift_left bit !index);
-      index := !index + 1
-    );
-  if !index = Element.bit_size
-  then begin
-    output_list := !target_element :: !output_list;
-    output_list_size := succ !output_list_size;
-    target_element := Element.zero;
-    index := 0
-  end;
-  let total_bits = Element.bit_size * !output_list_size + !index in
-  let output_list, output_list_size =
-    if !index = 0
-    then !output_list, !output_list_size
-    else !target_element::!output_list, succ !output_list_size
-  in
-  let t = create ~len:total_bits in
-  ListLabels.iteri output_list
-    ~f:(fun i element ->
-        Element.set t (output_list_size - i) element
-      );
-  t
+  let builder = Builder.create () in
+  iter (fun bit -> Builder.push builder bit);
+  Builder.to_bitvector builder
 
 let of_seq =
   let finish ~output_list ~output_list_size ~total_bits =

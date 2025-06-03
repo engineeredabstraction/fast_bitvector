@@ -130,3 +130,15 @@ val to_seq : t -> bool Seq.t
 
 val of_seq : bool Seq.t -> t
 (** Convert a sequence into a bitvector. *)
+
+
+module Builder : sig
+  type t' := t
+
+  type t 
+
+  val create : unit -> t
+  val push : t -> bool -> unit
+  val to_bitvector : t -> t'
+  val reset : t -> unit
+end
