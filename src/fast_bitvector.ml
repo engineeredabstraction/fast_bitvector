@@ -14,6 +14,7 @@ module type Element = sig
   val bit_size : int
   val byte_size : int
   val shift : int
+  val index_mask : int
 
   val equal : t -> t -> bool
 
@@ -45,6 +46,7 @@ module Element_32 = struct
   let bit_size = 32
   let byte_size = 4
   let shift = 5
+  let index_mask = 31
 
   external get : bytes -> int -> t = "%caml_bytes_get32u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set32u"
@@ -53,6 +55,9 @@ module Element_32 = struct
   let get b i = get b (i*byte_size)
 
   let count_set_bits = Popcount.count_set_bits_32
+
+  let of_int i =
+    logand (of_int i) max_int
 end
 
 module Element_64 = struct
@@ -61,6 +66,7 @@ module Element_64 = struct
   let bit_size = 64
   let byte_size = 8
   let shift = 6
+  let index_mask = 63
 
   external get : bytes -> int -> t = "%caml_bytes_get64u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set64u"
@@ -69,6 +75,9 @@ module Element_64 = struct
   let get b i = get b (i*byte_size)
 
   let count_set_bits = Popcount.count_set_bits_64
+
+  let of_int i =
+    logand (of_int i) max_int
 end
 
 module Element = (val
@@ -279,6 +288,38 @@ module [@inline always] Ops(Check : Check) = struct
     let union = or_
   end
 
+  module With_int = struct
+    let or_ ~result a ~bit0_at b_int =
+      Check.index a bit0_at;
+      let b_el = Element.of_int b_int in
+      let bit0_element_index = 1 + (bit0_at lsr Element.shift) in
+      let bitN_element_index = 1 + ((bit0_at + Sys.int_size - 1) lsr Element.shift) in
+      let should_set_N = (bitN_element_index - 1) * Element.bit_size < length a in
+      let element0_shift_left = bit0_at land Element.index_mask in
+      let elementN_shift_right =
+        (* Only those bits that exceed Element.bit_size after shifting element0_shift_left
+           need to be set in elementN.
+           So we examine the highest bit in b_el (a position Sys.int_size - 1):
+        *)
+        let excess_bits = Element.bit_size - Sys.int_size in
+        let bits_in_elementN = element0_shift_left - excess_bits in
+        Sys.int_size - bits_in_elementN
+      in
+      let v = Element.get a bit0_element_index in
+      let v' =
+        Element.logor v (Element.shift_left b_el element0_shift_left)
+      in
+      Element.set result bit0_element_index v';
+      if bit0_element_index <> bitN_element_index && should_set_N
+      then begin
+        let v = Element.get a bitN_element_index in
+        let v' =
+          Element.logor v (Element.shift_right_logical b_el elementN_shift_right)
+        in
+        Element.set result bitN_element_index v'
+      end;
+      result
+  end
 end
 
 module Check_none = struct
@@ -502,34 +543,36 @@ module Builder = struct
   type t =
     { mutable current : int
     ; mutable current_index : int
-    ; mutable list_bits : int
+    ; mutable list_len : int
     ; mutable rev_list : int list
     }
 
   let to_bitvector t =
     assert (Sys.int_size <= Element.bit_size);
-    let len = t.list_bits + t.current_index in
+    let len = t.list_len * Sys.int_size + t.current_index in
     let bv = create ~len in
-    for j = 0 to t.current_index - 1 do
-      Unsafe.set_to bv (len - t.current_index + j) ((t.current lsr j) land 1 = 1)
-    done;
-    let list_bits = t.list_bits in
-    let rec aux bv rev_list ~list_bits ~i =
+    let list_len = t.list_len in
+    let rec aux bv rev_list ~i =
       match rev_list with
       | [] -> ()
       | x :: xs ->
-        for j = 0 to Sys.int_size - 1 do
-          Unsafe.set_to bv (list_bits - i - Sys.int_size + j) ((x lsr j) land 1 = 1)
-        done;
-        aux bv xs ~i:(i + Sys.int_size) ~list_bits
+        let current_element_bit0 = (list_len - i - 1) * Sys.int_size in
+        let _ = Unsafe.With_int.or_ ~result:bv bv ~bit0_at:current_element_bit0 x in
+        aux bv xs ~i:(i + 1)
     in
-    aux bv t.rev_list ~list_bits ~i:0;
+    aux bv t.rev_list ~i:0;
+    if t.current_index > 0
+    then begin
+      let current_element_bit0 = t.list_len * Sys.int_size in
+      let _ = Unsafe.With_int.or_ ~result:bv bv ~bit0_at:current_element_bit0 t.current in
+      ()
+    end;
     bv
 
   let create () =
     { current = 0
     ; current_index = 0
-    ; list_bits = 0
+    ; list_len = 0
     ; rev_list = []
     }
 
@@ -537,7 +580,7 @@ module Builder = struct
     t.current <- 0;
     t.current_index <- 0;
     t.rev_list <- [];
-    t.list_bits <- 0;
+    t.list_len <- 0;
     ()
 
   let push t bit =
@@ -549,7 +592,7 @@ module Builder = struct
       t.rev_list <- t.current :: t.rev_list;
       t.current <- 0;
       t.current_index <- 0;
-      t.list_bits <- t.list_bits + Sys.int_size
+      t.list_len <- succ t.list_len
     end
 
 end
@@ -559,37 +602,9 @@ let of_iter iter =
   iter (fun bit -> Builder.push builder bit);
   Builder.to_bitvector builder
 
-let of_seq =
-  let finish ~output_list ~output_list_size ~total_bits =
-    let t = create ~len:total_bits in
-    ListLabels.iteri output_list
-      ~f:(fun i element ->
-          Element.set t (output_list_size - i) element
-          );
-    t
-  in
-  let rec extract_element (seq : _ Seq.t) ~output_list ~output_list_size ~target_element ~index =
-    if index = Element.bit_size
-    then begin
-      let output_list = target_element :: output_list in
-      let output_list_size = succ output_list_size in
-      extract_element seq ~output_list ~output_list_size ~target_element:Element.zero ~index:0
-    end else begin
-    	match seq ()  with
-    	| Nil ->
-    	  let total_bits = Element.bit_size * output_list_size + index in
-    	  let output_list, output_list_size =
-    	    if index = 0
-    	    then output_list, output_list_size
-    	    else target_element::output_list, succ output_list_size
-    	  in
-    	  finish ~output_list ~output_list_size ~total_bits
-    	| Cons (bit, remainder) ->
-    	  let bit = Element.of_int ((Obj.magic : bool -> int) bit) in
-    	  let target_element = Element.logor target_element (Element.shift_left bit index) in
-    	  let index = succ index in
-    	  extract_element remainder ~output_list ~output_list_size ~target_element ~index
-    end
-  in
-  fun seq ->
-    extract_element seq ~output_list:[] ~output_list_size:0 ~target_element:Element.zero ~index:0
+let of_seq seq =
+  Seq.fold_left
+    (fun builder bit -> Builder.push builder bit; builder)
+    (Builder.create ())
+    seq
+  |> Builder.to_bitvector

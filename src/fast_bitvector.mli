@@ -50,6 +50,11 @@ module type Ops := sig
     (** [union ~result x y] returns bitwise or of [x] and [y], on bits allocated
         in [result]. *)
   end
+
+  module With_int : sig
+    val or_ : (t -> bit0_at:int -> int -> t) with_result
+    (** or with the int at [bit0_at] offset, excess bits in the int are ignored. *)
+  end
 end
 
 module Unsafe : Ops
