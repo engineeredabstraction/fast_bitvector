@@ -1,5 +1,6 @@
 
 ## Development
+- New, more clear, sexp representation
 - Better error messages for safe functions
 
 ## 0.0.5
