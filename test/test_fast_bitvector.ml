@@ -235,13 +235,24 @@ let%expect_test "Convertion roundtrips" =
   let e = a |> (fun t f -> Fast_bitvector.iter_seti ~f t) |> Fast_bitvector.of_offset_iter in
   print_s
     [%message
-      "" (Fast_bitvector.Relaxed.equal a b : bool) (Fast_bitvector.Relaxed.equal a c : bool) (Fast_bitvector.Relaxed.equal a d : bool) (Fast_bitvector.Relaxed.equal a e : bool)];
+      "" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t) (d : Fast_bitvector.t) (e : Fast_bitvector.t)];
   [%expect
     {|
-    (("Fast_bitvector.Relaxed.equal a b" true)
-     ("Fast_bitvector.Relaxed.equal a c" true)
-     ("Fast_bitvector.Relaxed.equal a d" true)
-     ("Fast_bitvector.Relaxed.equal a e" true))
+    ((a (LE 0101010101))
+     (b (LE 0101010101))
+     (c (LE 0101010101))
+     (d (LE 101010101))
+     (e (LE 101010101)))
+    |}];
+  let b = a |> (fun t f -> Fast_bitvector.rev_iter ~f t) |> Fast_bitvector.of_bool_iter in
+  let e = a |> (fun t f -> Fast_bitvector.rev_iter_seti ~f t) |> Fast_bitvector.of_offset_iter in
+  print_s
+    [%message
+      "" (b : Fast_bitvector.t) (e : Fast_bitvector.t)];
+  [%expect
+    {|
+    ((b (LE 1010101010))
+     (e (LE 101010101)))
     |}]
 
 let%expect_test "Relaxed" = 

@@ -14,6 +14,7 @@ module type Element = sig
   val bit_size : int
   val byte_size : int
   val shift : int
+  val last_bit : t
   val equal : t -> t -> bool
   val to_int : t -> int
   val of_int : int -> t
@@ -39,14 +40,15 @@ module Element_32 = struct
   let bit_size = 32
   let byte_size = 4
   let shift = 5
+  let last_bit = shift_left one (bit_size - 1)
 
   external get : bytes -> int -> t = "%caml_bytes_get32u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set32u"
 
-  let set b i v = set b (i * byte_size) v
-  let get b i = get b (i * byte_size)
+  let[@inline always] set b i v = set b (i * byte_size) v
+  let[@inline always] get b i = get b (i * byte_size)
   let count_set_bits = Popcount.count_set_bits_32
-  let sexp_of_t = Sexplib0.Sexp_conv.sexp_of_int32
+  let sexp_of_t x = Sexplib0.Sexp_conv.sexp_of_int32 x
 end
 
 module Element_64 = struct
@@ -55,14 +57,48 @@ module Element_64 = struct
   let bit_size = 64
   let byte_size = 8
   let shift = 6
+  let last_bit = shift_left one (bit_size - 1)
 
   external get : bytes -> int -> t = "%caml_bytes_get64u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set64u"
 
-  let set b i v = set b (i * byte_size) v
-  let get b i = get b (i * byte_size)
+  let[@inline always] set b i v = set b (i * byte_size) v
+  let[@inline always] get b i = get b (i * byte_size)
   let count_set_bits = Popcount.count_set_bits_64
-  let sexp_of_t = Sexplib0.Sexp_conv.sexp_of_int64
+  let sexp_of_t x = Sexplib0.Sexp_conv.sexp_of_int64 x
+end
+
+module type Foldable = sig
+  type t
+
+  val fold_lefti : t -> init:'acc -> f:('acc -> int -> bool -> 'acc) -> 'acc
+  val fold_righti : t -> init:'acc -> f:(int -> bool -> 'acc -> 'acc) -> 'acc
+end
+
+module type IterationS = sig
+  include Foldable
+
+  val fold_left : t -> init:'acc -> f:('acc -> bool -> 'acc) -> 'acc
+  val fold_right : t -> init:'acc -> f:(bool -> 'acc -> 'acc) -> 'acc
+  val iteri : t -> f:(int -> bool -> unit) -> unit
+  val rev_iteri : t -> f:(int -> bool -> unit) -> unit
+  val iter : t -> f:(bool -> unit) -> unit
+  val rev_iter : t -> f:(bool -> unit) -> unit
+  val iter_seti : t -> f:(int -> unit) -> unit
+  val rev_iter_seti : t -> f:(int -> unit) -> unit
+end
+
+module Iteration (F : Foldable) : IterationS with type t := F.t = struct
+  include F
+
+  let fold_left t ~init ~f = fold_lefti ~init ~f:(fun acc _i v -> f acc v) t
+  let fold_right t ~init ~f = fold_righti ~init ~f:(fun _i v acc -> f v acc) t
+  let iteri t ~f = fold_lefti ~init:() ~f:(fun _acc i b -> f i b) t
+  let iter t ~f = iteri ~f:(fun _i b -> f b) t
+  let rev_iteri t ~f = fold_righti ~init:() ~f:(fun i b _acc -> f i b) t
+  let rev_iter t ~f = rev_iteri ~f:(fun _i b -> f b) t
+  let iter_seti v ~f = iteri ~f:(fun i b -> if b then f i) v
+  let rev_iter_seti v ~f = rev_iteri ~f:(fun i b -> if b then f i) v
 end
 
 module Element = struct
@@ -70,20 +106,35 @@ module Element = struct
     (val if Sys.word_size = 32 then (module Element_32 : Element)
          else (module Element_64 : Element))
 
-  let foldi ~init ~f e =
-    let rec aux acc i e =
-      if i < bit_size then
-        let raw_bit = logand one e in
-        let bit = raw_bit |> to_int |> (Obj.magic : int -> bool) in
-        let acc = f acc i bit in
-        aux acc (i + 1) (shift_right_logical e 1)
-      else acc
-    in
-    aux init 0 e
+  let to_debug_string t =
+    (String.init [@inlined hint]) bit_size (fun i ->
+        if equal (logand (shift_right_logical t i) one) one then '1' else '0')
 
-  let fold e ~init ~f = foldi ~init ~f:(fun acc _i b -> f acc b) e
-  let iteri e ~f = foldi ~init:() ~f:(fun _acc i b -> f i b) e
-  let iter e ~f = iteri ~f:(fun _i b -> f b) e
+  include Iteration (struct
+    type nonrec t = t
+
+    let fold_lefti e ~init ~f =
+      let rec aux acc i e =
+        if i < bit_size then
+          let raw_bit = logand one e in
+          let bit = raw_bit |> to_int |> (Obj.magic : int -> bool) in
+          let acc = f acc i bit in
+          aux acc (i + 1) (shift_right_logical e 1)
+        else acc
+      in
+      aux init 0 e
+
+    let fold_righti e ~init ~f =
+      let rec aux acc i e =
+        if i >= 0 then
+          let raw_bit = logand last_bit e in
+          let bit = equal raw_bit last_bit in
+          let acc = f i bit acc in
+          aux acc (i - 1) (shift_left e 1)
+        else acc
+      in
+      aux init (bit_size - 1) e
+  end)
 
   let of_iteri iter =
     let result = ref zero in
@@ -404,16 +455,35 @@ let extend_inplace v ~len =
     new_vec
   else v
 
-let[@inline always] foldi v ~init ~f =
-  let length = length v in
-  let acc = ref init in
-  for i = 0 to pred length do
-    (* CR smuenzel: process word at a time *)
-    acc := f !acc i (Unsafe.get v i)
-  done;
-  !acc
+include Iteration (struct
+  type nonrec t = t
 
-let fold v ~init ~f = foldi ~init ~f:(fun acc _i b -> f acc b) v
+  let[@inline always] fold_lefti v ~init ~f =
+    let length = length v in
+    let acc = ref init in
+    for wi = 1 to total_words ~length do
+      let bucket = (wi - 1) lsl Element.shift in
+      let w = Element.get v wi in
+      acc :=
+        Element.fold_lefti ~init:!acc
+          ~f:(fun acc i b -> if i < length then f acc (bucket + i) b else acc)
+          w
+    done;
+    !acc
+
+  let[@inline always] fold_righti v ~init ~f =
+    let length = length v in
+    let acc = ref init in
+    for wi = total_words ~length downto 1 do
+      let bucket = (wi - 1) lsl Element.shift in
+      let w = Element.get v wi in
+      acc :=
+        Element.fold_righti ~init:!acc
+          ~f:(fun i b acc -> if i < length then f (bucket + i) b acc else acc)
+          w
+    done;
+    !acc
+end)
 
 let map t ~f =
   (init [@inlined hint]) (length t) ~f:(fun i -> f (Unsafe.get t i))
@@ -493,10 +563,6 @@ module Little_endian = struct
 
   let t_of_sexp = t_of_sexp
 end
-
-let iteri v ~f = foldi ~init:() ~f:(fun _ i bit -> f i bit) v
-let iter v ~f = iteri ~f:(fun _i b -> f b) v
-let iter_seti v ~f = iteri ~f:(fun i b -> if b then f i) v
 
 let of_bool_iter iter =
   let result = ref (create ~len:0) in
