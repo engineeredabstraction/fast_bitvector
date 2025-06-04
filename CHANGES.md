@@ -1,5 +1,6 @@
 
 ## Development
+- Better error messages for safe functions
 - Fix big-endian architecture compatibility
 
 ## 0.0.5
