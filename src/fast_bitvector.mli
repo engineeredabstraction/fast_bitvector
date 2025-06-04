@@ -38,6 +38,13 @@ module type Set := sig
   val union : (t -> t -> t) with_result
   (** [union ~result x y] returns bitwise or of [x] and [y], on bits allocated
       in [result]. *)
+
+  val subset : t -> t -> bool
+  (** [subset s1 s2] tests whether the bitvector [s1] is a subset of the
+      bitvector [s2]. *)
+
+  val equal : t -> t -> bool
+  (** Tests whenever two bitvectors are the same. *)
 end
 
 module type Ops := sig
@@ -45,24 +52,19 @@ module type Ops := sig
   val clear : t -> int -> unit
   val set_to : t -> int -> bool -> unit
   val get : t -> int -> bool
-  val equal : t -> t -> bool
   val not : (t -> t) with_result
   val and_ : (t -> t -> t) with_result
   val or_ : (t -> t -> t) with_result
   val xor : (t -> t -> t) with_result
 
-  module Set : Set
+  include Set
 end
 
 module Unsafe : Ops
 
+module Relaxed : Set
 (** Relaxed set operations: iteration is done on result vector, missing bits in
     operands are considered zero automatically. *)
-module Relaxed : sig
-  include Set
-
-  val equal : t -> t -> bool
-end
 
 include Ops
 

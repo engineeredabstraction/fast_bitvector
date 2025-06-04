@@ -205,7 +205,7 @@ let%expect_test "Logical" =
   let empty = Fast_bitvector.create ~len:0 in
   let b = [false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
   let a = [true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
-  let c = Fast_bitvector.Unsafe.Set.intersect ~result:(Fast_bitvector.create ~len:2) a b in
+  let c = Fast_bitvector.Unsafe.intersect ~result:(Fast_bitvector.create ~len:2) a b in
   print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal c empty : bool)];
   [%expect {|
     (equal
@@ -222,7 +222,18 @@ let%expect_test "Logical" =
       (a (LE 10))
       (b (LE 10))
       ("Fast_bitvector.Relaxed.equal a b" true))
+    |}];
+  let a = Fast_bitvector.Big_endian.of_string "01110100101" in 
+  let b = Fast_bitvector.Big_endian.of_string "01100100000" in 
+  let c = Fast_bitvector.Big_endian.of_string "01010010000" in 
+  print_s [%message "subset" (Fast_bitvector.subset b a: bool) (Fast_bitvector.subset c a: bool)];
+  [%expect {|
+    (subset
+      ("Fast_bitvector.subset b a" true)
+      ("Fast_bitvector.subset c a" false))
     |}]
+
+
 
 let%expect_test "Convertion roundtrips" =
   let a = Fast_bitvector.create ~len:10 in
@@ -235,25 +246,30 @@ let%expect_test "Convertion roundtrips" =
   let e = a |> (fun t f -> Fast_bitvector.iter_seti ~f t) |> Fast_bitvector.of_offset_iter in
   print_s
     [%message
-      "" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t) (d : Fast_bitvector.t) (e : Fast_bitvector.t)];
+      "iters/seqs" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t) (d : Fast_bitvector.t) (e : Fast_bitvector.t)];
   [%expect
     {|
-    ((a (LE 0101010101))
-     (b (LE 0101010101))
-     (c (LE 0101010101))
-     (d (LE 101010101))
-     (e (LE 101010101)))
+    (iters/seqs
+      (a (LE 0101010101))
+      (b (LE 0101010101))
+      (c (LE 0101010101))
+      (d (LE 101010101))
+      (e (LE 101010101)))
     |}];
   let b = a |> (fun t f -> Fast_bitvector.rev_iter ~f t) |> Fast_bitvector.of_bool_iter in
   let e = a |> (fun t f -> Fast_bitvector.rev_iter_seti ~f t) |> Fast_bitvector.of_offset_iter in
   print_s
     [%message
-      "" (b : Fast_bitvector.t) (e : Fast_bitvector.t)];
+      "reverse" (b : Fast_bitvector.t) (e : Fast_bitvector.t)];
   [%expect
     {|
-    ((b (LE 1010101010))
-     (e (LE 101010101)))
-    |}]
+    (reverse
+      (b (LE 1010101010))
+      (e (LE 101010101)))
+    |}];
+    let b = a |> Fast_bitvector.Big_endian.to_string |> Fast_bitvector.Big_endian.of_string in
+  print_s [%message "strings" (b : Fast_bitvector.t)];
+  [%expect {| (strings (b (LE 0101010101))) |}]
 
 let%expect_test "Relaxed" = 
   let f () = Fast_bitvector.create ~len:10 in
@@ -335,5 +351,14 @@ let%expect_test "Relaxed" =
       (a (LE 1))
       (b (LE 10))
       ("Fast_bitvector.Relaxed.equal c empty" true))
+    |}];
+  let a = Fast_bitvector.Big_endian.of_string "01110100101" in 
+  let b = Fast_bitvector.Big_endian.of_string "0110010" in 
+  let c = Fast_bitvector.Big_endian.of_string "010100100" in 
+  print_s [%message "subset" (Fast_bitvector.Relaxed.subset b a: bool) (Fast_bitvector.Relaxed.subset c a: bool)];
+  [%expect {|
+    (subset
+      ("Fast_bitvector.Relaxed.subset b a" true)
+      ("Fast_bitvector.Relaxed.subset c a" false))
     |}]
 

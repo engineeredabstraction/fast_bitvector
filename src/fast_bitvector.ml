@@ -279,21 +279,6 @@ module [@inline always] Ops (Check : Check) = struct
     done;
     result
 
-  let[@inline always] foldop2 ~init ~f ~final a b =
-    let length = Check.length2 a b in
-    let total_words = total_words ~length in
-    let acc = ref init in
-    for i = 1 to total_words do
-      acc := (f [@inlined hint]) !acc (Element.get a i) (Element.get b i)
-    done;
-    let remaining = length land (Element.bit_size - 1) in
-    let mask =
-      Element.sub (Element.shift_left Element.one remaining) Element.one
-    in
-    (f [@inlined hint]) !acc
-      (final ~mask (Element.get a total_words))
-      (final ~mask (Element.get b total_words))
-
   let[@inline always] get t i =
     Check.index t i;
     let index = 1 + (i lsr Element.shift) in
@@ -334,28 +319,34 @@ module [@inline always] Ops (Check : Check) = struct
     in
     Element.set t index v'
 
-  let equal a b =
-    foldop2 a b ~init:true
-      ~f:(fun acc a b ->
-        acc &&& Element.equal Element.zero (Element.logxor a b))
-      ~final:(fun ~mask a -> Element.logand mask a)
-
   let not ~result a = logop1 ~f:Element.lognot a result
   let and_ ~result a b = logop2 ~f:Element.logand a b result
   let or_ ~result a b = logop2 ~f:Element.logor a b result
   let xor ~result a b = logop2 ~f:Element.logxor a b result
+  let mem = get
+  let intersect = and_
+  let complement = not
+  let symmetric_difference = xor
 
-  module Set = struct
-    let mem = get
-    let intersect = and_
-    let complement = not
-    let symmetric_difference = xor
+  let difference ~result a b =
+    logop2 ~f:(fun a b -> Element.logand a (Element.lognot b)) a b result
 
-    let difference ~result a b =
-      logop2 ~f:(fun a b -> Element.logand a (Element.lognot b)) a b result
+  let union = or_
 
-    let union = or_
-  end
+  let equal a b =
+    let _ = Check.length2 a b in
+    foldi a ~init:true ~f:(fun acc i a ->
+        acc &&& Element.equal Element.zero (Element.logxor a (Element.get b i)))
+
+  let subset a b =
+    let _ = Check.length2 a b in
+    foldi ~init:true
+      ~f:(fun acc i e_b ->
+        acc
+        &&&
+        let e_a = Element.get a i in
+        Element.equal (Element.logand e_a e_b) e_a)
+      b
 end
 
 module Unsafe = Ops (struct
@@ -403,12 +394,21 @@ module Relaxed = struct
         acc
         &&& Element.equal Element.zero
               (Element.logxor a (Element.get_or_zero b i total_words_b)))
-end
 
-let equal a b =
-  let la = length a in
-  let lb = length b in
-  la = lb && Unsafe.equal a b
+  let subset a b =
+    let total_words_a = total_words ~length:(length a)
+    and total_words_b = total_words ~length:(length b) in
+    let total_words = Int.max total_words_a total_words_b in
+    Iter.(1 -- total_words)
+    |> Iter.fold
+         (fun acc i ->
+           acc
+           &&&
+           let e_a = Element.get_or_zero a i total_words_a
+           and e_b = Element.get_or_zero b i total_words_b in
+           Element.equal (Element.logand e_a e_b) e_a)
+         true
+end
 
 let init new_length ~f =
   let t = create ~len:new_length in
