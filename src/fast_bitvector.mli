@@ -38,15 +38,13 @@ module Unsafe : Ops
 
 include Ops
 
-(* Bit 0 first *)
-module Big_endian : sig
+module Bit_zero_first : sig
   type nonrec t = t [@@deriving sexp]
   val to_string : t -> string
   val of_string : string -> t
 end
 
-(* Bit 0 last *)
-module Little_endian : sig
+module Bit_zero_last : sig
   type nonrec t = t [@@deriving sexp]
   val to_string : t -> string
   val of_string : string -> t
