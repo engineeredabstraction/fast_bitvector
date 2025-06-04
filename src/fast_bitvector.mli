@@ -48,6 +48,9 @@ module type Set := sig
 
   val equal : t -> t -> bool
   (** Tests whenever two bitvectors are the same. *)
+
+  val equal_modulo : modulo:t -> t -> t -> bool
+  (** Tests whenever two bitvectors are the same, in bits set in [~modulo]. *)
 end
 
 module type Ops := sig

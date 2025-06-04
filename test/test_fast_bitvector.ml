@@ -216,12 +216,12 @@ let%expect_test "Logical" =
   let a = [false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
   let b = (Fast_bitvector.create ~len:2) in
   let b = Fast_bitvector.Unsafe.or_ ~result:b a b in
-  print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal a b : bool)];
+  print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.equal a b : bool)];
   [%expect {|
     (equal
       (a (LE 10))
       (b (LE 10))
-      ("Fast_bitvector.Relaxed.equal a b" true))
+      ("Fast_bitvector.equal a b" true))
     |}];
   let a = Fast_bitvector.Big_endian.of_string "01110100101" in 
   let b = Fast_bitvector.Big_endian.of_string "01100100000" in 
@@ -235,11 +235,21 @@ let%expect_test "Logical" =
   let a = Fast_bitvector.Big_endian.of_string "01011000100" in 
   let b = Fast_bitvector.Big_endian.of_string "00000110010" in 
   let c = Fast_bitvector.Big_endian.of_string "00110110010" in 
-  print_s [%message "disjoint" (Fast_bitvector.Relaxed.disjoint b a: bool) (Fast_bitvector.Relaxed.disjoint a c: bool)];
+  print_s [%message "disjoint" (Fast_bitvector.disjoint b a: bool) (Fast_bitvector.disjoint a c: bool)];
   [%expect {|
     (disjoint 
-      ("Fast_bitvector.Relaxed.disjoint b a" true)
-      ("Fast_bitvector.Relaxed.disjoint a c" false))
+      ("Fast_bitvector.disjoint b a" true)
+      ("Fast_bitvector.disjoint a c" false))
+    |}];
+  let a = Fast_bitvector.Big_endian.of_string "01001101101" in 
+  let b = Fast_bitvector.Big_endian.of_string "01101000100" in 
+  let c = Fast_bitvector.Big_endian.of_string "11101010100" in 
+  let m = Fast_bitvector.Big_endian.of_string "11011010100" in 
+  print_s [%message "modulo" (Fast_bitvector.equal_modulo ~modulo:m a b: bool) (Fast_bitvector.equal_modulo ~modulo:m a c: bool)];
+  [%expect {|
+    (modulo 
+      ("Fast_bitvector.equal_modulo ~modulo:m a b" true)
+      ("Fast_bitvector.equal_modulo ~modulo:m a c" false))
     |}]
 
 let%expect_test "Convertion roundtrips" =
@@ -380,4 +390,14 @@ let%expect_test "Relaxed" =
     (disjoint 
       ("Fast_bitvector.Relaxed.disjoint b a" true)
       ("Fast_bitvector.Relaxed.disjoint a c" false))
+    |}];
+  let a = Fast_bitvector.Big_endian.of_string "01001101101" in 
+  let b = Fast_bitvector.Big_endian.of_string "011010001" in 
+  let c = Fast_bitvector.Big_endian.of_string "101010100" in 
+  let m = Fast_bitvector.Big_endian.of_string "11011010100" in 
+  print_s [%message "modulo" (Fast_bitvector.Relaxed.equal_modulo ~modulo:m a b: bool) (Fast_bitvector.Relaxed.equal_modulo ~modulo:m a c: bool)];
+  [%expect {|
+    (modulo 
+      ("Fast_bitvector.Relaxed.equal_modulo ~modulo:m a b" true)
+      ("Fast_bitvector.Relaxed.equal_modulo ~modulo:m a c" false))
     |}]

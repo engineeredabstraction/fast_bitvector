@@ -357,6 +357,16 @@ module [@inline always] Ops (Check : Check) = struct
         let e_a = Element.get a i in
         Element.equal Element.zero (Element.logand e_a e_b))
       b
+
+  let equal_modulo ~modulo a b =
+    let _ = Check.length3 a b modulo in
+    foldi ~init:true
+      ~f:(fun acc i e_m ->
+        acc
+        &&&
+        let e_a = Element.get a i and e_b = Element.get b i in
+        Element.equal (Element.logand e_a e_m) (Element.logand e_b e_m))
+      modulo
 end
 
 module Unsafe = Ops (struct
@@ -430,6 +440,18 @@ module Relaxed = struct
            and e_b = Element.get_or_zero b i total_words_b in
            Element.equal Element.zero (Element.logand e_a e_b))
          true
+
+  let equal_modulo ~modulo a b =
+    let total_words_a = total_words ~length:(length a)
+    and total_words_b = total_words ~length:(length b) in
+    foldi ~init:true
+      ~f:(fun acc i e_m ->
+        acc
+        &&&
+        let e_a = Element.get_or_zero a i total_words_a
+        and e_b = Element.get_or_zero b i total_words_b in
+        Element.equal (Element.logand e_a e_m) (Element.logand e_b e_m))
+      modulo
 end
 
 let init new_length ~f =
