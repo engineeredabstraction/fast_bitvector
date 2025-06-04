@@ -1,4 +1,7 @@
 
+## Development
+- Better error messages for safe functions
+
 ## 0.0.5
 - 32-bit compatible
 - Properly fix append
