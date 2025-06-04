@@ -347,7 +347,7 @@ let map t ~f =
 
 open Sexplib0
 
-module Big_endian' = struct
+module Bit_zero_first' = struct
   type nonrec t = t
 
   let to_string t =
@@ -371,12 +371,12 @@ module Big_endian' = struct
 
   let sexp_of_t t =
     Sexp.List
-      [ Sexp.Atom "BE"
+      [ Sexp.Atom "B0F"
       ; Sexp.Atom (to_string t)
       ]
 end
 
-module Little_endian' = struct
+module Bit_zero_last' = struct
   type nonrec t = t
 
   let to_string t =
@@ -403,35 +403,35 @@ module Little_endian' = struct
 
   let sexp_of_t t =
     Sexp.List
-      [ Sexp.Atom "LE"
+      [ Sexp.Atom "B0L"
       ; Sexp.Atom (to_string t)
       ]
 end
 
 let t_of_sexp = function
   | Sexp.List
-      [ Sexp.Atom "BE"
+      [ Sexp.Atom ("BE" | "B0F")
       ; Sexp.Atom s
-      ] -> Big_endian'.of_string s
+      ] -> Bit_zero_first'.of_string s
   | Sexp.List
-      [ Sexp.Atom "LE"
+      [ Sexp.Atom ("LE" | "B0L")
       ; Sexp.Atom s
       ]
   | Sexp.Atom s ->
-    Little_endian'.of_string s
+    Bit_zero_last'.of_string s
   | other ->
     Sexp_conv.of_sexp_error "not a bitvector" other
 
-let sexp_of_t = Little_endian'.sexp_of_t
+let sexp_of_t = Bit_zero_last'.sexp_of_t
 
-module Big_endian = struct
-  include Big_endian'
+module Bit_zero_first = struct
+  include Bit_zero_first'
 
   let t_of_sexp = t_of_sexp
 end
 
-module Little_endian = struct
-  include Little_endian'
+module Bit_zero_last = struct
+  include Bit_zero_last'
 
   let t_of_sexp = t_of_sexp
 end

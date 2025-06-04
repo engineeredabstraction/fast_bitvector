@@ -1,4 +1,7 @@
 
+## Development
+- New, more clear, sexp representation
+
 ## 0.0.5
 - 32-bit compatible
 - Properly fix append
