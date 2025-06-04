@@ -1,5 +1,8 @@
 
 ## Development
+- New, more clear, sexp representation
+- Better error messages for safe functions
+- Fix big-endian architecture compatibility
 - Remove returned bitvector in ops, user is now required to track it themselves
 - Add `Inplace` variant of all ops in a submodule
 

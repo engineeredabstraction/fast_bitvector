@@ -53,6 +53,9 @@ module Element_32 = struct
   let get b i = get b (i*byte_size)
 
   let count_set_bits = Popcount.count_set_bits_32
+
+  let of_int i =
+    logand (of_int i) max_int
 end
 
 module Element_64 = struct
@@ -69,6 +72,9 @@ module Element_64 = struct
   let get b i = get b (i*byte_size)
 
   let count_set_bits = Popcount.count_set_bits_64
+
+  let of_int i =
+    logand (of_int i) max_int
 end
 
 module Element = (val
@@ -124,11 +130,18 @@ let [@inline always] foldop1 ~init ~f ~final a =
         !acc
         (Element.get a i)
   done;
-  let remaining = length land (Element.bit_size - 1) in
-  let mask = Element.sub (Element.shift_left Element.one remaining) Element.one in
-  (f [@inlined hint])
-    !acc
-    (final ~mask (Element.get a total_words))
+  let remaining = length mod Element.bit_size in
+  if remaining = 0
+  then begin
+    (f [@inlined hint])
+      !acc
+      (Element.get a total_words)
+  end else begin
+    let mask = Element.(sub (shift_left one remaining) one) in
+    (f [@inlined hint])
+      !acc
+      (final ~mask (Element.get a total_words))
+  end
 
 let popcount t =
   foldop1 t 
@@ -433,10 +446,23 @@ let append a b =
   let length_a = length a in
   let length_b = length b in
   let length = length_a + length_b in
+  let words_a = total_words ~length:length_a in
+  let words_b = total_words ~length:length_b in
   let t = create ~len:length in
-  Bytes.blit a Element.byte_size t Element.byte_size ((length_a + 7) / 8);
-  for i = 0 to pred length_b do
+  for i = 1 to words_a do
+    Element.set t i (Element.get a i)
+  done;
+  let already_set = length_a mod Element.bit_size in
+  let to_set_in_first_element =
+    Int.min
+      length_b
+      (Element.bit_size - already_set)
+  in
+  for i = 0 to to_set_in_first_element - 1 do
     Unsafe.set_to t (length_a + i) (Unsafe.get b i)
+  done;
+  for i = 1 to words_b do
+    Element.set t (words_a + i) (Element.get b i)
   done;
   t
 
@@ -455,7 +481,7 @@ let map t ~f =
 
 open Sexplib0
 
-module Big_endian' = struct
+module Bit_zero_first' = struct
   type nonrec t = t
 
   let to_string t =
@@ -479,12 +505,12 @@ module Big_endian' = struct
 
   let sexp_of_t t =
     Sexp.List
-      [ Sexp.Atom "BE"
+      [ Sexp.Atom "B0F"
       ; Sexp.Atom (to_string t)
       ]
 end
 
-module Little_endian' = struct
+module Bit_zero_last' = struct
   type nonrec t = t
 
   let to_string t =
@@ -511,35 +537,35 @@ module Little_endian' = struct
 
   let sexp_of_t t =
     Sexp.List
-      [ Sexp.Atom "LE"
+      [ Sexp.Atom "B0L"
       ; Sexp.Atom (to_string t)
       ]
 end
 
 let t_of_sexp = function
   | Sexp.List
-      [ Sexp.Atom "BE"
+      [ Sexp.Atom ("BE" | "B0F")
       ; Sexp.Atom s
-      ] -> Big_endian'.of_string s
+      ] -> Bit_zero_first'.of_string s
   | Sexp.List
-      [ Sexp.Atom "LE"
+      [ Sexp.Atom ("LE" | "B0L")
       ; Sexp.Atom s
       ]
   | Sexp.Atom s ->
-    Little_endian'.of_string s
+    Bit_zero_last'.of_string s
   | other ->
     Sexp_conv.of_sexp_error "not a bitvector" other
 
-let sexp_of_t = Little_endian'.sexp_of_t
+let sexp_of_t = Bit_zero_last'.sexp_of_t
 
-module Big_endian = struct
-  include Big_endian'
+module Bit_zero_first = struct
+  include Bit_zero_first'
 
   let t_of_sexp = t_of_sexp
 end
 
-module Little_endian = struct
-  include Little_endian'
+module Bit_zero_last = struct
+  include Bit_zero_last'
 
   let t_of_sexp = t_of_sexp
 end
