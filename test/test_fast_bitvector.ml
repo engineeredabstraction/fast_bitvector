@@ -205,7 +205,7 @@ let%expect_test "Logical" =
   let empty = Fast_bitvector.create ~len:0 in
   let b = [false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
   let a = [true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
-  let c = Fast_bitvector.Unsafe.intersect ~result:(Fast_bitvector.create ~len:2) a b in
+  let c = Fast_bitvector.Unsafe.inter ~result:(Fast_bitvector.create ~len:2) a b in
   print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal c empty : bool)];
   [%expect {|
     (equal
@@ -231,9 +231,16 @@ let%expect_test "Logical" =
     (subset
       ("Fast_bitvector.subset b a" true)
       ("Fast_bitvector.subset c a" false))
+    |}];
+  let a = Fast_bitvector.Big_endian.of_string "01011000100" in 
+  let b = Fast_bitvector.Big_endian.of_string "00000110010" in 
+  let c = Fast_bitvector.Big_endian.of_string "00110110010" in 
+  print_s [%message "disjoint" (Fast_bitvector.Relaxed.disjoint b a: bool) (Fast_bitvector.Relaxed.disjoint a c: bool)];
+  [%expect {|
+    (disjoint 
+      ("Fast_bitvector.Relaxed.disjoint b a" true)
+      ("Fast_bitvector.Relaxed.disjoint a c" false))
     |}]
-
-
 
 let%expect_test "Convertion roundtrips" =
   let a = Fast_bitvector.create ~len:10 in
@@ -283,7 +290,7 @@ let%expect_test "Relaxed" =
   Fast_bitvector.set_all b3;
   let a = Fast_bitvector.append a0 (Fast_bitvector.append a1 a2) in
   let b = Fast_bitvector.append b0 (Fast_bitvector.append b1 (Fast_bitvector.append b2 b3)) in
-  let _ = Fast_bitvector.Relaxed.intersect ~result:c a b in
+  let _ = Fast_bitvector.Relaxed.inter ~result:c a b in
   print_s [%message "inter" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
   [%expect {|
     (inter
@@ -291,7 +298,7 @@ let%expect_test "Relaxed" =
       (b (LE 1111111111000000000011111111110000000000))
       (c (LE 0000000000000000000000000000000000000000)))
     |}];
-  let _ = Fast_bitvector.Relaxed.intersect ~result:d a b in
+  let _ = Fast_bitvector.Relaxed.inter ~result:d a b in
   print_s [%message "inter" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
   [%expect {|
     (inter
@@ -307,7 +314,7 @@ let%expect_test "Relaxed" =
       (b (LE 1111111111000000000011111111110000000000))
       (c (LE 1111111111111111111111111111110000000000)))
     |}];
-  let _ = Fast_bitvector.Relaxed.symmetric_difference ~result:c a b in
+  let _ = Fast_bitvector.Relaxed.symmetric_diff ~result:c a b in
   print_s [%message "symdiff" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
   [%expect {|
     (symdiff
@@ -315,7 +322,7 @@ let%expect_test "Relaxed" =
       (b (LE 1111111111000000000011111111110000000000))
       (c (LE 1111111111111111111111111111110000000000)))
     |}];
-  let _ = Fast_bitvector.Relaxed.difference ~result:c a b in
+  let _ = Fast_bitvector.Relaxed.diff ~result:c a b in
   print_s [%message "diff" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
   [%expect {|
     (diff
@@ -344,7 +351,7 @@ let%expect_test "Relaxed" =
   let empty = Fast_bitvector.create ~len:0 in
   let b = [false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
   let a = [true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
-  let c = Fast_bitvector.Relaxed.intersect ~result:(Fast_bitvector.create ~len:2) a b in
+  let c = Fast_bitvector.Relaxed.inter ~result:(Fast_bitvector.create ~len:2) a b in
   print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal c empty : bool)];
   [%expect {|
     (equal
@@ -360,5 +367,13 @@ let%expect_test "Relaxed" =
     (subset
       ("Fast_bitvector.Relaxed.subset b a" true)
       ("Fast_bitvector.Relaxed.subset c a" false))
+    |}];
+  let a = Fast_bitvector.Big_endian.of_string "01011000" in 
+  let b = Fast_bitvector.Big_endian.of_string "00000110010" in 
+  let c = Fast_bitvector.Big_endian.of_string "00110110010" in 
+  print_s [%message "disjoint" (Fast_bitvector.Relaxed.disjoint b a: bool) (Fast_bitvector.Relaxed.disjoint a c: bool)];
+  [%expect {|
+    (disjoint 
+      ("Fast_bitvector.Relaxed.disjoint b a" true)
+      ("Fast_bitvector.Relaxed.disjoint a c" false))
     |}]
-

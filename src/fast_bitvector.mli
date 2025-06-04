@@ -19,25 +19,28 @@ module type Set := sig
   val mem : t -> int -> bool
   (** [mem v i] checks whenever the bit with offset [i] is set to one. *)
 
-  val intersect : (t -> t -> t) with_result
-  (** [intersect ~result x y] returns bitwise and of [x] and [y], on bits
-      allocated in [result]. *)
+  val inter : (t -> t -> t) with_result
+  (** [inter ~result x y] returns bitwise and of [x] and [y], on bits allocated
+      in [result]. *)
 
   val complement : (t -> t) with_result
   (** [complement ~result x] returns bitwise negation of [x], on bits allocated
       in [result]. *)
 
-  val symmetric_difference : (t -> t -> t) with_result
-  (** [symmetric_difference ~result x y] returns bitwise xor of [x] and [y], on
-      bits allocated in [result]. *)
-
-  val difference : (t -> t -> t) with_result
-  (** [difference ~result x y] returns bitwise and of [x] and [y], on bits
+  val symmetric_diff : (t -> t -> t) with_result
+  (** [symmetric_diff ~result x y] returns bitwise xor of [x] and [y], on bits
       allocated in [result]. *)
+
+  val diff : (t -> t -> t) with_result
+  (** [diff ~result x y] returns bitwise and of [x] and [y], on bits allocated
+      in [result]. *)
 
   val union : (t -> t -> t) with_result
   (** [union ~result x y] returns bitwise or of [x] and [y], on bits allocated
       in [result]. *)
+
+  val disjoint : t -> t -> bool
+  (** Test if two sets are disjoint.*)
 
   val subset : t -> t -> bool
   (** [subset s1 s2] tests whether the bitvector [s1] is a subset of the
@@ -64,7 +67,7 @@ module Unsafe : Ops
 
 module Relaxed : Set
 (** Relaxed set operations: iteration is done on result vector, missing bits in
-    operands are considered zero automatically. *)
+    operands are considered zero by default. *)
 
 include Ops
 

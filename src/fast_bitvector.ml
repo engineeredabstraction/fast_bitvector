@@ -324,11 +324,11 @@ module [@inline always] Ops (Check : Check) = struct
   let or_ ~result a b = logop2 ~f:Element.logor a b result
   let xor ~result a b = logop2 ~f:Element.logxor a b result
   let mem = get
-  let intersect = and_
+  let inter = and_
   let complement = not
-  let symmetric_difference = xor
+  let symmetric_diff = xor
 
-  let difference ~result a b =
+  let diff ~result a b =
     logop2 ~f:(fun a b -> Element.logand a (Element.lognot b)) a b result
 
   let union = or_
@@ -346,6 +346,16 @@ module [@inline always] Ops (Check : Check) = struct
         &&&
         let e_a = Element.get a i in
         Element.equal (Element.logand e_a e_b) e_a)
+      b
+
+  let disjoint a b =
+    let _ = Check.length2 a b in
+    foldi ~init:true
+      ~f:(fun acc i e_b ->
+        acc
+        &&&
+        let e_a = Element.get a i in
+        Element.equal Element.zero (Element.logand e_a e_b))
       b
 end
 
@@ -375,14 +385,12 @@ end)
 
 module Relaxed = struct
   let mem = get
-  let intersect ~result a b = logop2_relaxed ~f:Element.logand a b result
+  let inter ~result a b = logop2_relaxed ~f:Element.logand a b result
   let union ~result a b = logop2_relaxed ~f:Element.logor a b result
   let complement ~result a = logop1_relaxed ~f:Element.lognot a result
+  let symmetric_diff ~result a b = logop2_relaxed ~f:Element.logxor a b result
 
-  let symmetric_difference ~result a b =
-    logop2_relaxed ~f:Element.logxor a b result
-
-  let difference ~result a b =
+  let diff ~result a b =
     logop2_relaxed
       ~f:(fun a b -> Element.logand a (Element.lognot b))
       a b result
@@ -407,6 +415,20 @@ module Relaxed = struct
            let e_a = Element.get_or_zero a i total_words_a
            and e_b = Element.get_or_zero b i total_words_b in
            Element.equal (Element.logand e_a e_b) e_a)
+         true
+
+  let disjoint a b =
+    let total_words_a = total_words ~length:(length a)
+    and total_words_b = total_words ~length:(length b) in
+    let total_words = Int.max total_words_a total_words_b in
+    Iter.(1 -- total_words)
+    |> Iter.fold
+         (fun acc i ->
+           acc
+           &&&
+           let e_a = Element.get_or_zero a i total_words_a
+           and e_b = Element.get_or_zero b i total_words_b in
+           Element.equal Element.zero (Element.logand e_a e_b))
          true
 end
 
