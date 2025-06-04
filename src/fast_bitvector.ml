@@ -53,6 +53,9 @@ module Element_32 = struct
   let get b i = get b (i*byte_size)
 
   let count_set_bits = Popcount.count_set_bits_32
+
+  let of_int i =
+    logand (of_int i) max_int
 end
 
 module Element_64 = struct
@@ -69,6 +72,9 @@ module Element_64 = struct
   let get b i = get b (i*byte_size)
 
   let count_set_bits = Popcount.count_set_bits_64
+
+  let of_int i =
+    logand (of_int i) max_int
 end
 
 module Element = (val
@@ -124,11 +130,18 @@ let [@inline always] foldop1 ~init ~f ~final a =
         !acc
         (Element.get a i)
   done;
-  let remaining = length land (Element.bit_size - 1) in
-  let mask = Element.sub (Element.shift_left Element.one remaining) Element.one in
-  (f [@inlined hint])
-    !acc
-    (final ~mask (Element.get a total_words))
+  let remaining = length mod Element.bit_size in
+  if remaining = 0
+  then begin
+    (f [@inlined hint])
+      !acc
+      (Element.get a total_words)
+  end else begin
+    let mask = Element.(sub (shift_left one remaining) one) in
+    (f [@inlined hint])
+      !acc
+      (final ~mask (Element.get a total_words))
+  end
 
 let popcount t =
   foldop1 t 
@@ -341,10 +354,23 @@ let append a b =
   let length_a = length a in
   let length_b = length b in
   let length = length_a + length_b in
+  let words_a = total_words ~length:length_a in
+  let words_b = total_words ~length:length_b in
   let t = create ~len:length in
-  Bytes.blit a Element.byte_size t Element.byte_size ((length_a + 7) / 8);
-  for i = 0 to pred length_b do
+  for i = 1 to words_a do
+    Element.set t i (Element.get a i)
+  done;
+  let already_set = length_a mod Element.bit_size in
+  let to_set_in_first_element =
+    Int.min
+      length_b
+      (Element.bit_size - already_set)
+  in
+  for i = 0 to to_set_in_first_element - 1 do
     Unsafe.set_to t (length_a + i) (Unsafe.get b i)
+  done;
+  for i = 1 to words_b do
+    Element.set t (words_a + i) (Element.get b i)
   done;
   t
 
