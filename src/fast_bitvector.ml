@@ -112,6 +112,7 @@ let clear_all t =
   loop_set t Element.zero
 
 external (&&&) : bool -> bool -> bool = "%andint"
+external (|||) : bool -> bool -> bool = "%orint"
 
 let [@inline always] foldop1 ~init ~f ~final a =
   let length = length a in
@@ -280,29 +281,44 @@ module [@inline always] Ops(Check : Check) = struct
 
 end
 
-module Unsafe = Ops(struct
-    let [@inline always] index _ _ = ()
-    let [@inline always] length2 a _ = length a
-    let [@inline always] length3 a _ _ = length a
-  end)
+module Check_none = struct
+  let [@inline always] index _ _ = ()
+  let [@inline always] length2 a _ = length a
+  let [@inline always] length3 a _ _ = length a
+end
 
-include Ops(struct
-    let [@inline always] index t i = assert (0 <= i && i < length t)
+module Check_all = struct
+  let [@cold] raise_index_out_of_bounds ~i ~length =
+    failwithf "index %d out of bounds [0,%d)" i length
 
-    let [@inline always] length2 a b =
-      let la = length a in
-      let lb = length b in
-      assert (la = lb);
-      la
+  let [@inline always] index t i =
+    let length = length t in
+    if (i >= length) ||| (i < 0) then raise_index_out_of_bounds ~i ~length
 
-    let [@inline always] length3 a b c =
-      let la = length a in
-      let lb = length b in
-      let lc = length c in
-      assert (la = lb);
-      assert (la = lc);
-      la
-    end)
+  let [@cold] raise_length_mismatch2 ~length1 ~length2 =
+    failwithf "length mismatch: %d <> %d" length1 length2
+
+  let [@inline always] length2 a b =
+    let la = length a in
+    let lb = length b in
+    if la <> lb then raise_length_mismatch2 ~length1:la ~length2:lb;
+    la
+
+  let [@cold] raise_length_mismatch3 ~length1 ~length2 ~length3 =
+    failwithf "length mismatch: %d, %d, %d must be equal" length1 length2 length3
+
+  let [@inline always] length3 a b c =
+    let la = length a in
+    let lb = length b in
+    let lc = length c in
+    if (la <> lb) ||| (la <> lc)
+    then raise_length_mismatch3 ~length1:la ~length2:lb ~length3:lc;
+    la
+end
+
+module Unsafe = Ops(Check_none)
+
+include Ops(Check_all)
 
 let equal a b =
   let la = length a in

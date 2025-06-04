@@ -7,6 +7,9 @@
     - `iter` and `iteri`, `foldi` implementations.
 - Added documentation to most of the public API.
 
+## Development
+- Better error messages for safe functions
+
 ## 0.0.5
 - 32-bit compatible
 - Properly fix append
