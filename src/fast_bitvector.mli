@@ -48,6 +48,14 @@ module Inplace : sig
     with type with_result := unit
 end
 
+module Allocate : sig
+  module Unsafe : Ops
+    with type with_result := t
+
+  include Ops
+    with type with_result := t
+end
+
 val qqq : t -> t -> result:t -> unit
 
 module Bit_zero_first : sig

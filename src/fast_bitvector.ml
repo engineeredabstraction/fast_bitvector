@@ -252,6 +252,25 @@ module Inplace_result = struct
 
 end
 
+module Allocate_result = struct
+  type t' = t
+
+  type _ t = t'
+
+  let [@inline always] wrap_1 (f : t' -> t' -> unit) : (t' -> 'a t) =
+    fun bv ->
+      let res_bv = create ~len:(length bv) in
+      f bv res_bv;
+      res_bv
+
+  let [@inline always] wrap_2 (f : t' -> t' -> t' -> unit) : (t' -> t' -> 'a t) =
+    fun bv1 bv2 ->
+      let res_bv = create ~len:(length bv1) in
+      f bv1 bv2 res_bv;
+      res_bv
+
+end
+
 module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
   let [@inline always] logop1 ~f =
     let [@inline always] inner_f a result =
@@ -420,6 +439,12 @@ module Inplace = struct
   module Unsafe = Ops(Check_none)(Inplace_result)
 
   include Ops(Check_all)(Inplace_result)
+end
+
+module Allocate = struct
+  module Unsafe = Ops(Check_none)(Allocate_result)
+
+  include Ops(Check_all)(Allocate_result)
 end
 
 let equal a b =
