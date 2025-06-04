@@ -621,3 +621,18 @@ let to_offset_seq v =
     else Seq.Nil
   in
   aux 0
+
+let to_rev_bool_seq v =
+  let length = length v in
+  let rec aux i () =
+    if i >= 0 then Seq.Cons (get v i, aux (i - 1)) else Seq.Nil
+  in
+  aux (length - 1)
+
+let to_rev_offset_seq v =
+  let length = length v in
+  let rec aux i () =
+    if i >= 0 then if get v i then Seq.Cons (i, aux (i - 1)) else aux (i - 1) ()
+    else Seq.Nil
+  in
+  aux (length - 1)

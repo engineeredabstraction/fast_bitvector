@@ -167,7 +167,10 @@ val of_bool_iter : ((bool -> unit) -> unit) -> t
 (** Convert a bool iterator into a bitvector. *)
 
 val to_bool_seq : t -> bool Seq.t
-(** Return a bool sequence (pull style) over bits. *)
+(** Return a bool sequence over bits. *)
+
+val to_rev_bool_seq : t -> bool Seq.t
+(** Return a bool sequence over bits (in reverse). *)
 
 val of_bool_seq : bool Seq.t -> t
 (** Convert a bool sequence into a bitvector. *)
@@ -176,7 +179,10 @@ val of_offset_iter : ((int -> unit) -> unit) -> t
 (** Convert an offset iterator into a bitvector. *)
 
 val to_offset_seq : t -> int Seq.t
-(** Return an offset sequence (pull style) over bits. *)
+(** Return an offset sequence over bits. *)
+
+val to_rev_offset_seq : t -> int Seq.t
+(** Return an offset sequence over bits (in reverse). *)
 
 val of_offset_seq : int Seq.t -> t
 (** Convert an offset sequence into a bitvector. *)

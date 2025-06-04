@@ -264,14 +264,18 @@ let%expect_test "Convertion roundtrips" =
       (e (LE 101010101)))
     |}];
   let b = a |> (fun t f -> Fast_bitvector.rev_iter ~f t) |> Fast_bitvector.of_bool_iter in
-  let e = a |> (fun t f -> Fast_bitvector.rev_iter_seti ~f t) |> Fast_bitvector.of_offset_iter in
+  let c = a |> (fun t f -> Fast_bitvector.rev_iter_seti ~f t) |> Fast_bitvector.of_offset_iter in
+  let d = a |> Fast_bitvector.to_rev_bool_seq |> Fast_bitvector.of_bool_seq in
+  let e = a |> Fast_bitvector.to_rev_offset_seq |> Fast_bitvector.of_offset_seq in
   print_s
     [%message
-      "reverse" (b : Fast_bitvector.t) (e : Fast_bitvector.t)];
+      "reverse" (b : Fast_bitvector.t) (c : Fast_bitvector.t) (d : Fast_bitvector.t) (e : Fast_bitvector.t)];
   [%expect
     {|
     (reverse
       (b (LE 1010101010))
+      (c (LE 101010101))
+      (d (LE 1010101010))
       (e (LE 101010101)))
     |}];
     let b = a |> Fast_bitvector.Big_endian.to_string |> Fast_bitvector.Big_endian.of_string in
