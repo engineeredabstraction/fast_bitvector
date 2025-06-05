@@ -3,6 +3,7 @@
  *)
 
 let ( = ) = Int.equal
+let ( <> ) x y = not @@ Int.equal x y
 
 type t = Bytes.t
 
@@ -114,26 +115,26 @@ module Element = struct
     type nonrec t = t
 
     let[@inline always] fold_lefti e ~init ~f =
-      let[@tail_mod_cons] rec aux acc i e =
-        if i < bit_size then
-          let raw_bit = logand one e in
-          let bit = raw_bit |> to_int |> (Obj.magic : int -> bool) in
-          let acc = f acc i bit in
-          aux acc (i + 1) (shift_right_logical e 1)
-        else acc
-      in
-      aux init 0 e
+      let acc = ref init in
+      let e = ref e in
+      for i = 0 to pred bit_size do
+        let raw_bit = logand one !e in
+        let bit = raw_bit |> to_int |> (Obj.magic : int -> bool) in
+        e := shift_right_logical !e 1;
+        acc := f !acc i bit
+      done;
+      !acc
 
     let[@inline always] fold_righti e ~init ~f =
-      let[@tail_mod_cons]  rec aux acc i e =
-        if i >= 0 then
-          let raw_bit = logand last_bit e in
-          let bit = equal raw_bit last_bit in
-          let acc = f i bit acc in
-          aux acc (i - 1) (shift_left e 1)
-        else acc
-      in
-      aux init (bit_size - 1) e
+      let acc = ref init in
+      let e = ref e in
+      for i = bit_size - 1 downto 0 do
+        let raw_bit = logand last_bit !e in
+        let bit = equal raw_bit last_bit in
+        e := shift_left !e 1;
+        acc := f i bit !acc
+      done;
+      !acc
   end)
 
   let of_iteri iter =
