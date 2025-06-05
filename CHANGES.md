@@ -17,6 +17,7 @@
     - Added iteration to and of words, folding
     - Redefined equality in terms of words (should have same semantics, given that `set_all` and `create_full` do not set all bits)
     - completely dropped `foldop1`, now using `foldi`
+    - use `Bytes.make` instead of `Bytes.init`
 - Fixed:
     - `popcount`, `is_full` and `is_empty`
 

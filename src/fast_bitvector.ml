@@ -113,8 +113,8 @@ module Element = struct
   include Iteration (struct
     type nonrec t = t
 
-    let fold_lefti e ~init ~f =
-      let rec aux acc i e =
+    let[@inline always] fold_lefti e ~init ~f =
+      let[@tail_mod_cons] rec aux acc i e =
         if i < bit_size then
           let raw_bit = logand one e in
           let bit = raw_bit |> to_int |> (Obj.magic : int -> bool) in
@@ -124,8 +124,8 @@ module Element = struct
       in
       aux init 0 e
 
-    let fold_righti e ~init ~f =
-      let rec aux acc i e =
+    let[@inline always] fold_righti e ~init ~f =
+      let[@tail_mod_cons]  rec aux acc i e =
         if i >= 0 then
           let raw_bit = logand last_bit e in
           let bit = equal raw_bit last_bit in
@@ -173,7 +173,7 @@ let create ~len:new_length =
     (new_length + Element.bit_size - 1) / Element.bit_size
   in
   let total_words = total_data_words + 1 in
-  let t = Bytes.init (total_words * Element.byte_size) (fun _ -> '\x00') in
+  let t = Bytes.make (total_words * Element.byte_size) '\x00' in
   Element.set t 0 (Element.of_int new_length);
   assert (length t == new_length);
   t
