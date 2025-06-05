@@ -2,7 +2,7 @@
 - Added:
     - `union`, `subset`, `disjoint` and `equal_modulo` to complete set operations
     - `extend` allocates a bigger copy of a bitvector, `extend_inplace` - same, but may reuse the internal byte array
-    - `mapi` as simple `map` requires external mutable state to do something more complex
+    - `mapi` as simple `map` requires external mutable state to do anything interesting
     - `to/of(_rev)_offset/bool_seq`, `of_offset/bool_iter` to connect to other containers using either `bool` or offset streams/iterators
     - `(rev_)iter`, `(rev_)iteri` and `(rev_)iter_seti`, `fold_left(i)` and `fold_right(i)`
     - Documentation to most of the public API

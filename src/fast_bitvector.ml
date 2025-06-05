@@ -390,7 +390,7 @@ include Ops (struct
 end)
 
 module Relaxed = struct
-  let mem = get
+  let mem v i = if i < length v then get v i else false
   let inter ~result a b = logop2_relaxed ~f:Element.logand a b result
   let union ~result a b = logop2_relaxed ~f:Element.logor a b result
   let complement ~result a = logop1_relaxed ~f:Element.lognot a result

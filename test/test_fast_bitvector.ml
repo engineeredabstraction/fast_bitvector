@@ -436,4 +436,12 @@ let%expect_test "Relaxed" =
     (modulo 
       ("Fast_bitvector.Relaxed.equal_modulo ~modulo:m a b" true)
       ("Fast_bitvector.Relaxed.equal_modulo ~modulo:m a c" false))
-    |}]
+    |}];
+  let a = Fast_bitvector.Big_endian.of_string "01110100101" in 
+  print_s [%message "subset" (Fast_bitvector.Relaxed.mem a 0: bool) (Fast_bitvector.Relaxed.mem a 1: bool) (Fast_bitvector.Relaxed.mem a 20: bool)];
+  [%expect {|
+    (subset
+      ("Fast_bitvector.Relaxed.mem a 0"  false)
+      ("Fast_bitvector.Relaxed.mem a 1"  true)
+      ("Fast_bitvector.Relaxed.mem a 20" false))
+    |}];
