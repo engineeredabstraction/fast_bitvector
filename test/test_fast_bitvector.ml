@@ -86,7 +86,24 @@ let%expect_test "Popcount" =
        LE
        1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111))
      (pop 100))
-    |}]
+    |}];
+  let a = Fast_bitvector.create ~len:100 in
+  for i = 0 to 15 do 
+    Fast_bitvector.set_to a i ((Int.rem i 2) = 0)
+  done;
+  let pop = Fast_bitvector.popcount a in
+  print_s [%message "" (pop : int)];
+  [%expect {| (pop 8) |}];
+  let a = Fast_bitvector.Big_endian.of_string "0101101010101110101010" in
+  let pop = Fast_bitvector.popcount a in
+  print_s [%message "" (pop : int)];
+  [%expect {| (pop 12) |}];
+  let a = Fast_bitvector.create ~len:64 in
+  Fast_bitvector.set a 63;
+  Fast_bitvector.set a 62;
+  let pop = Fast_bitvector.popcount a in
+  print_s [%message "" (pop : int)];
+  [%expect {| (pop 2) |}]
 
 let%expect_test "Append" =
   let a100, b100 = Fast_bitvector.create ~len:100, Fast_bitvector.create ~len:100 in
@@ -107,36 +124,55 @@ let%expect_test "Append" =
 
 let%expect_test "Extend" =
   let empty = Fast_bitvector.create ~len:0 in
-  let empty_ten = Fast_bitvector.extend empty ~len:1 in
+  let empty_one = Fast_bitvector.extend empty ~len:1 in
   print_s
     [%message
       ""
         (Fast_bitvector.is_empty empty : bool)
-        (Fast_bitvector.is_empty empty_ten : bool)];
+        (Fast_bitvector.is_empty empty_one : bool)
+        (Fast_bitvector.is_full empty : bool)
+        (Fast_bitvector.is_full empty_one : bool)];
   [%expect
     {|
       (("Fast_bitvector.is_empty empty"     true)
-       ("Fast_bitvector.is_empty empty_ten" true))
+       ("Fast_bitvector.is_empty empty_one" true)
+       ("Fast_bitvector.is_full empty"      false)
+       ("Fast_bitvector.is_full empty_one"  false))
     |}];
-  let empty_ten = Fast_bitvector.extend_inplace empty ~len:1 in
-  let _ = Fast_bitvector.set_all empty_ten in
+  let one = Fast_bitvector.extend_inplace empty ~len:1 in
+  let _ = Fast_bitvector.set_all one in
   print_s
     [%message
       ""
         (Fast_bitvector.is_empty empty : bool)
-        (Fast_bitvector.is_full empty_ten : bool)];
+        (Fast_bitvector.is_full one : bool)];
   [%expect
     {|
-      (("Fast_bitvector.is_empty empty"    true)
-       ("Fast_bitvector.is_full empty_ten" true))
+      (("Fast_bitvector.is_empty empty" true)
+       ("Fast_bitvector.is_full one"    true))
+    |}];
+  let a = Fast_bitvector.create ~len:64 in
+  Fast_bitvector.set a 45;
+  Fast_bitvector.set a 49;
+  Fast_bitvector.set a 63;
+  print_s
+    [%message
+      ""
+        (Fast_bitvector.is_empty a : bool)
+        (Fast_bitvector.is_full a : bool)];
+  [%expect
+    {|
+      (("Fast_bitvector.is_empty a" false)
+       ("Fast_bitvector.is_full a"  false))
     |}];
   let a = Fast_bitvector.create_full ~len:10 in
   let b = Fast_bitvector.extend a ~len:16 in
-  print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
+  print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.is_full a : bool)];
   [%expect
     {|
     ((a (LE 1111111111))
-     (b (LE 0000001111111111)))
+     (b (LE 0000001111111111))
+     ("Fast_bitvector.is_full a" true))
     |}];
   let a = Fast_bitvector.create_full ~len:65 in
   let b = Fast_bitvector.extend a ~len:66 in

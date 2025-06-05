@@ -198,7 +198,7 @@ let clear_all result =
 
 external ( &&& ) : bool -> bool -> bool = "%andint"
 
-let foldi ~init ~f v =
+let[@inline always] foldi ~init ~f v =
   let length = length v in
   let total_words = total_words ~length in
   let acc = ref init in
@@ -207,33 +207,29 @@ let foldi ~init ~f v =
   done;
   !acc
 
-let[@inline always] foldop1 ~init ~f ~final a =
-  let length = length a in
-  let total_words = total_words ~length in
-  let acc = ref init in
-  for i = 1 to pred total_words do
-    acc := (f [@inlined hint]) !acc (Element.get a i)
-  done;
-  let remaining = length land (Element.bit_size - 1) in
-  let mask =
-    Element.sub (Element.shift_left Element.one remaining) Element.one
-  in
-  (f [@inlined hint]) !acc (final ~mask (Element.get a total_words))
-
 let popcount t =
-  foldop1 t ~init:0
-    ~f:(fun acc v -> acc + Element.count_set_bits v)
-    ~final:(fun ~mask a -> Element.logand mask a)
+  foldi t ~init:0 ~f:(fun acc _ v -> acc + Element.count_set_bits v)
 
 let is_empty t =
-  foldop1 t ~init:true
-    ~f:(fun acc v -> acc &&& Element.equal v Element.zero)
-    ~final:(fun ~mask a -> Element.logand mask a)
+  foldi t ~init:true ~f:(fun acc _ v -> acc &&& Element.equal v Element.zero)
 
-let is_full t =
-  foldop1 t ~init:true
-    ~f:(fun acc v -> acc &&& Element.equal v Element.minus_one)
-    ~final:(fun ~mask a -> Element.logor (Element.lognot mask) a)
+let is_full v =
+  let length = length v in
+  if length = 0 then false
+  else
+    let total_words = total_words ~length in
+    let remaining = length land (Element.bit_size - 1) in
+    (*remainder of division by bitsize*)
+    let mask =
+      if remaining = 0 then Element.minus_one
+      else Element.sub (Element.shift_left Element.one remaining) Element.one
+    in
+    let inverse_mask = Element.lognot mask in
+    foldi v ~init:true ~f:(fun acc i e ->
+        let e =
+          if i <> 0 && i = total_words then Element.logor inverse_mask e else e
+        in
+        acc &&& Element.equal e Element.minus_one)
 
 module type Check = sig
   val index : t -> int -> unit
