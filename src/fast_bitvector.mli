@@ -51,6 +51,7 @@ module type Ops := sig
         in [result]. *)
   end
 
+  (* In [With_int], the least significant bit is take to be at the index [bit0_at]. *)
   module With_int : sig
     val or_ : (t -> bit0_at:int -> int -> t) with_result
     (** or with the int at [bit0_at] offset, excess bits in the int are ignored. *)
