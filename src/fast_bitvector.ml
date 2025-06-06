@@ -386,15 +386,11 @@ let create_full ~len =
 
 let copy t = Bytes.copy t
 
-let append a b =
-  let length_a = length a in
-  let length_b = length b in
-  let length = length_a + length_b in
+let append_internal ~a ~length_a ~b ~length_b ~get_b_bit ~get_b_element ~new_vector =
   let words_a = total_words ~length:length_a in
   let words_b = total_words ~length:length_b in
-  let t = create ~len:length in
   for i = 1 to words_a do
-    Element.set t i (Element.get a i)
+    Element.set new_vector i (Element.get a i)
   done;
   let already_set = length_a mod Element.bit_size in
   let to_set_in_first_element =
@@ -403,45 +399,34 @@ let append a b =
       (Element.bit_size - already_set)
   in
   for i = 0 to to_set_in_first_element - 1 do
-    Unsafe.set_to t (length_a + i) (Unsafe.get b i)
+    Unsafe.set_to new_vector (length_a + i) (get_b_bit b i)
   done;
   for i = 1 to words_b do
-    Element.set t (words_a + i) (Element.get b i)
+    Element.set new_vector (words_a + i) (get_b_element b i)
   done;
-  t
+  new_vector
 
-let copy_bits src dst =
-  let length = Int.min (length src) (length dst) in
-  let byte_size = (length + 7) / 8 in
-  if byte_size > 1 then (
-    (* This assumes that bit direction in Element and bytes is the same, I guess? *)
-    Bytes.blit src Element.byte_size dst Element.byte_size (byte_size - 1);
-    for i = 8 * (length / 8) to pred length do
-      Unsafe.set_to dst i (Unsafe.get src i)
-    done)
+let append a b =
+  let length_a = length a in
+  let length_b = length b in
+  let length = length_a + length_b in
+  let new_vector = create ~len:length in
+  append_internal ~a ~length_a ~b ~length_b ~get_b_bit:Unsafe.get ~get_b_element:Element.get ~new_vector
 
-let extend ~by v =
-  let len = length v + by in
-  let new_vec = create ~len in
-  copy_bits v new_vec;
-  new_vec
+let extend ~by t =
+  let length_t = length t in
+  let len = length_t + by in
+  let new_vector = create ~len in
+  append_internal
+    ~a:t
+    ~length_a:length_t
+    ~b:()
+    ~length_b:by
+    ~new_vector
+    ~get_b_bit:(fun _ _ -> false)
+    ~get_b_element:(fun _ _ -> Element.zero)
 
-let extend_inplace ~by v =
-  let prev_length = length v in
-  let new_length = prev_length + by in
-  let prev_capacity = 8 * Bytes.length v in
-  let new_vec =
-    if new_length <= prev_capacity then (
-      Element.set v 0 (Element.of_int new_length);
-      v)
-    else extend ~by v
-  in
-  for i = prev_length to pred prev_capacity do
-    Unsafe.set_to new_vec i false
-  done;
-  new_vec
-
-let[@inline always] foldi ~init ~f t =
+let[@inline always] foldi t ~init ~f =
   let length = length t in
   let acc = ref init in
   for i = 0 to pred length do
@@ -450,7 +435,7 @@ let[@inline always] foldi ~init ~f t =
   done;
   !acc
 
-let fold ~init ~f v = foldi ~init ~f:(fun acc _i b -> f acc b) v
+let fold t ~init ~f = foldi t ~init ~f:(fun acc _i b -> f acc b)
 
 let map t ~f =
   (init [@inlined hint]) (length t) ~f:(fun i -> f (Unsafe.get t i))
@@ -534,9 +519,9 @@ module Bit_zero_last = struct
   let t_of_sexp = t_of_sexp
 end
 
-let iteri ~f v = foldi ~init:() ~f:(fun _ i bit -> f i bit) v
+let iteri t ~f = foldi t ~init:() ~f:(fun _ i bit -> f i bit)
 
-let iter ~f v = iteri ~f:(fun _i b -> f b) v
+let iter t ~f = iteri t ~f:(fun _i b -> f b)
 
 let to_seq v =
   let rec aux v i () =

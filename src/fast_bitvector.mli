@@ -85,17 +85,13 @@ val append : t -> t -> t
 (** Append one bitvector to another. *)
 
 val extend : by:int -> t -> t
-(** Append an empty bitvector of size [by]. *)
+(** Append an all-zero bitvector of size [by]. *)
 
-val extend_inplace : by:int -> t -> t
-(** Resize bitvector to accomodate [by] bits, or allocate bigger bitvector like
-    [extend]. New bits may have random values. Invalidates input vector. *)
-
-val fold : init:'a -> f:('a -> bool -> 'a) -> t -> 'a
+val fold : t -> init:'a -> f:('a -> bool -> 'a) -> 'a
 (** [fold ~init ~f b0...bn] is [f (f (f init b0)...) bn], where [b0...bn] are
     individual bits in a bitvector. *)
 
-val foldi : init:'a -> f:('a -> int -> bool -> 'a) -> t -> 'a
+val foldi : t -> init:'a -> f:('a -> int -> bool -> 'a) -> 'a
 (** [foldi] is [fold] with offset provided. *)
 
 val map : t -> f:(bool -> bool) -> t
@@ -120,10 +116,10 @@ val is_empty : t -> bool
 val is_full : t -> bool
 (** Return whenever all bits are one. *)
 
-val iter : f:(bool -> unit) -> t -> unit
+val iter : t -> f:(bool -> unit) -> unit
 (** Iterate over all bits. *)
 
-val iteri : f:(int -> bool -> unit) -> t -> unit
+val iteri : t -> f:(int -> bool -> unit) -> unit
 (** Iterate over all bits and their offsets. *)
 
 val of_iter : ((bool -> unit) -> unit) -> t
