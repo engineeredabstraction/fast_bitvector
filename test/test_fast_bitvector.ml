@@ -26,7 +26,7 @@ let%expect_test "Basic" =
       B0L
       1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001))
     |}];
-  Fast_bitvector.not ~result:b a |> ignore;
+  Fast_bitvector.not ~dst:b a |> ignore;
   print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
   [%expect {|
     ((a (
@@ -117,7 +117,7 @@ let%expect_test "Logical" =
   let a = Fast_bitvector.append a0 (Fast_bitvector.append a1 (Fast_bitvector.append a2 a3)) in
   let b = Fast_bitvector.append b0 (Fast_bitvector.append b1 (Fast_bitvector.append b2 b3)) in
   ();
-  let _ = Fast_bitvector.and_ ~result:c a b in
+  let _ = Fast_bitvector.and_ ~dst:c a b in
   print_s [%message "and" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
   ];
   [%expect {|
@@ -126,7 +126,7 @@ let%expect_test "Logical" =
       (b (B0L 1111111111000000000011111111110000000000))
       (c (B0L 1111111111000000000000000000000000000000)))
     |}];
-  let _ = Fast_bitvector.or_ ~result:c a b in
+  let _ = Fast_bitvector.or_ ~dst:c a b in
   print_s [%message "or" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
   ];
   [%expect {|
@@ -135,7 +135,7 @@ let%expect_test "Logical" =
       (b (B0L 1111111111000000000011111111110000000000))
       (c (B0L 1111111111111111111111111111110000000000)))
     |}];
-  let _ = Fast_bitvector.xor ~result:c a b in
+  let _ = Fast_bitvector.xor ~dst:c a b in
   print_s [%message "xor" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
   ];
   [%expect {|

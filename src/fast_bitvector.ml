@@ -177,80 +177,22 @@ module type Make_result = sig
   val wrap_2 : (t' -> t' -> t' -> unit) -> (t' -> t' -> _ t)
 end
 
-(*
-
-module Operation_result = struct
-  type t' = t
-  type _ t =
-    | Allocate : t' t
-    | Write_to : (t' -> unit) t
-
-  module Make_result = struct
-    type 'a op_result = 'a t
-
-    type 'a t = 'a op_result -> 'a
-
-    let [@inline always] wrap_1 (f : t' -> t' -> unit) : (t' -> 'a t) =
-      fun (type a) bv (res_g : a op_result) : a ->
-      match res_g with
-      | Allocate ->
-        let res_bv = create ~len:(length bv) in
-        f bv res_bv;
-        res_bv
-      | Write_to ->
-        begin fun res_bv ->
-          f bv res_bv
-        end
-
-    let [@inline always] wrap_2 (f : t' -> t' -> t' -> unit) : (t' -> t' -> 'a t) =
-      fun (type a) bv1 bv2 (res_g : a op_result) : a ->
-      match res_g with
-      | Allocate ->
-        let res_bv = create ~len:(length bv1) in
-        f bv1 bv2 res_bv;
-        res_bv
-      | Write_to ->
-        begin fun res_bv ->
-          f bv1 bv2 res_bv
-        end
-  end
-end
-
-module _ : Make_result =
-  Operation_result.Make_result
-   *)
-
 module Explicit_result = struct
   type t' = t
 
-  type _ t = result: t' -> unit
+  type _ t = dst: t' -> unit
 
   let [@inline always] wrap_1 (f : t' -> t' -> unit) : (t' -> 'a t) =
-    fun bv ~result ->
-      (f [@inlined hint]) bv result
+    fun bv ~dst ->
+      (f [@inlined hint]) bv dst
 
   let [@inline always] wrap_2 (f : t' -> t' -> t' -> unit) : (t' -> t' -> 'a t) =
-    fun bv1 bv2 ~result ->
-      (f [@inlined hint]) bv1 bv2 result
+    fun bv1 bv2 ~dst ->
+      (f [@inlined hint]) bv1 bv2 dst
 end
 
 module _ : Make_result =
   Explicit_result
-
-module Inplace_result = struct
-  type t' = t
-
-  type _ t = unit
-
-  let [@inline always] wrap_1 (f : t' -> t' -> unit) : (t' -> 'a t) =
-    fun bv ->
-      (f [@inlined hint]) bv bv
-
-  let [@inline always] wrap_2 (f : t' -> t' -> t' -> unit) : (t' -> t' -> 'a t) =
-    fun bv1 bv2 ->
-      (f [@inlined hint]) bv1 bv2 bv1
-
-end
 
 module Allocate_result = struct
   type t' = t
@@ -435,12 +377,6 @@ module Unsafe = Ops(Check_none)(Explicit_result)
 
 include Ops(Check_all)(Explicit_result)
 
-module Inplace = struct
-  module Unsafe = Ops(Check_none)(Inplace_result)
-
-  include Ops(Check_all)(Inplace_result)
-end
-
 module Allocate = struct
   module Unsafe = Ops(Check_none)(Allocate_result)
 
@@ -461,7 +397,7 @@ let init new_length ~f =
 
 let create_full ~len =
   let t = create ~len in
-  Unsafe.not ~result:t t;
+  Unsafe.not ~dst:t t;
   t
 
 let copy t =
@@ -594,6 +530,3 @@ module Bit_zero_last = struct
 
   let t_of_sexp = t_of_sexp
 end
-
-let qqq a b ~result =
-  Set.intersect a b ~result

@@ -35,18 +35,10 @@ module type Ops :=
   end
 
 module Unsafe : Ops
-  with type with_result := result:t -> unit
+  with type with_result := dst:t -> unit
 
 include Ops
-  with type with_result := result:t -> unit
-
-module Inplace : sig
-  module Unsafe : Ops
-    with type with_result := unit
-
-  include Ops
-    with type with_result := unit
-end
+  with type with_result := dst:t -> unit
 
 module Allocate : sig
   module Unsafe : Ops
@@ -55,8 +47,6 @@ module Allocate : sig
   include Ops
     with type with_result := t
 end
-
-val qqq : t -> t -> result:t -> unit
 
 module Bit_zero_first : sig
   type nonrec t = t [@@deriving sexp]
