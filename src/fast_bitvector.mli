@@ -39,6 +39,8 @@ module Unsafe : Ops
 
 include Ops
   with type with_result := dst:t -> unit
+(** [dst] specifies the destination bitvector of the operation, for inplace operations,
+    specify one of the operands as [dst] `*)
 
 module Allocate : sig
   module Unsafe : Ops
