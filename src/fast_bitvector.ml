@@ -133,11 +133,18 @@ let [@inline always] foldop1 ~init ~f ~final a =
         !acc
         (Element.get a i)
   done;
-  let remaining = length land (Element.bit_size - 1) in
-  let mask = Element.sub (Element.shift_left Element.one remaining) Element.one in
-  (f [@inlined hint])
-    !acc
-    (final ~mask (Element.get a total_words))
+  let remaining = length mod Element.bit_size in
+  if remaining = 0
+  then begin
+    (f [@inlined hint])
+      !acc
+      (Element.get a total_words)
+  end else begin
+    let mask = Element.(sub (shift_left one remaining) one) in
+    (f [@inlined hint])
+      !acc
+      (final ~mask (Element.get a total_words))
+  end
 
 let popcount t =
   foldop1 t 
@@ -383,10 +390,23 @@ let append a b =
   let length_a = length a in
   let length_b = length b in
   let length = length_a + length_b in
+  let words_a = total_words ~length:length_a in
+  let words_b = total_words ~length:length_b in
   let t = create ~len:length in
-  Bytes.blit a Element.byte_size t Element.byte_size ((length_a + 7) / 8);
-  for i = 0 to pred length_b do
+  for i = 1 to words_a do
+    Element.set t i (Element.get a i)
+  done;
+  let already_set = length_a mod Element.bit_size in
+  let to_set_in_first_element =
+    Int.min
+      length_b
+      (Element.bit_size - already_set)
+  in
+  for i = 0 to to_set_in_first_element - 1 do
     Unsafe.set_to t (length_a + i) (Unsafe.get b i)
+  done;
+  for i = 1 to words_b do
+    Element.set t (words_a + i) (Element.get b i)
   done;
   t
 
@@ -440,13 +460,18 @@ let mapi t ~f =
 
 open Sexplib0
 
-module Big_endian' = struct
+module type Bit_ordering_spec = sig
+  val sexp_name : string
+  val get_index : length:int -> i:int -> int
+end
+
+module Bit_ordering_conversion(Spec : Bit_ordering_spec) = struct
   type nonrec t = t
 
   let to_string t =
     let length = length t in
     (String.init [@inlined hint]) length (fun i ->
-        if Unsafe.get t i
+        if Unsafe.get t (Spec.get_index ~length ~i)
         then '1'
         else '0'
       )
@@ -455,7 +480,7 @@ module Big_endian' = struct
     let length = String.length s in
     init length
       ~f:(fun i ->
-          match String.unsafe_get s i with
+          match String.unsafe_get s (Spec.get_index ~length ~i) with
           | '0' -> false
           | '1' -> true
           | other ->
@@ -464,67 +489,47 @@ module Big_endian' = struct
 
   let sexp_of_t t =
     Sexp.List
-      [ Sexp.Atom "BE"
+      [ Sexp.Atom Spec.sexp_name
       ; Sexp.Atom (to_string t)
       ]
 end
 
-module Little_endian' = struct
-  type nonrec t = t
+module Bit_zero_first' =
+  Bit_ordering_conversion(struct
+      let sexp_name = "B0F"
+      let get_index ~length:_ ~i = i
+    end)
 
-  let to_string t =
-    let length = length t in
-    (String.init [@inlined hint]) length (fun i ->
-        if Unsafe.get t (length - (i + 1))
-        then '1'
-        else '0'
-      )
-
-  let of_string s =
-    let length = String.length s in
-    let result =
-      init length
-        ~f:(fun i ->
-            match String.get s (length - (i + 1)) with
-            | '0' -> false
-            | '1' -> true
-            | other ->
-              failwithf "invalid char '%c'" other
-          )
-    in
-    result
-
-  let sexp_of_t t =
-    Sexp.List
-      [ Sexp.Atom "LE"
-      ; Sexp.Atom (to_string t)
-      ]
-end
+module Bit_zero_last' =
+  Bit_ordering_conversion(struct
+      let sexp_name = "B0L"
+      let get_index ~length ~i = length - (i + 1)
+    end)
 
 let t_of_sexp = function
   | Sexp.List
-      [ Sexp.Atom "BE"
+      [ Sexp.Atom ("BE" | "B0F")
       ; Sexp.Atom s
-      ] -> Big_endian'.of_string s
+      ] -> Bit_zero_first'.of_string s
   | Sexp.List
-      [ Sexp.Atom "LE"
+      [ Sexp.Atom ("LE" | "B0L")
       ; Sexp.Atom s
       ]
   | Sexp.Atom s ->
-    Little_endian'.of_string s
+    Bit_zero_last'.of_string s
   | other ->
     Sexp_conv.of_sexp_error "not a bitvector" other
 
-let sexp_of_t = Little_endian'.sexp_of_t
+let sexp_of_t = Bit_zero_last'.sexp_of_t
 
-module Big_endian = struct
-  include Big_endian'
+module Bit_zero_first = struct
+  include Bit_zero_first'
 
   let t_of_sexp = t_of_sexp
 end
 
-module Little_endian = struct
-  include Little_endian'
+module Bit_zero_last = struct
+  include Bit_zero_last'
 
   let t_of_sexp = t_of_sexp
 end

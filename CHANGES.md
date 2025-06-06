@@ -10,6 +10,11 @@
 ## Development
 - Better error messages for safe functions
 
+## Development
+- New, more clear, sexp representation
+- Better error messages for safe functions
+- Fix big-endian architecture compatibility
+
 ## 0.0.5
 - 32-bit compatible
 - Properly fix append
