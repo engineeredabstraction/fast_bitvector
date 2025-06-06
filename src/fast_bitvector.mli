@@ -138,7 +138,14 @@ module Builder : sig
   type t 
 
   val create : unit -> t
+  (** Create a new bitvector builder. *)
+
   val push : t -> bool -> unit
+  (** Add a single bit to the bitvector (at the highest index). *)
+
   val to_bitvector : t -> t'
+  (** Convert the builder to a bitvector. O(n). *)
+
   val reset : t -> unit
+  (** Reset the builder, clearing all stored data *)
 end
