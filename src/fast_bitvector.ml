@@ -386,7 +386,9 @@ let create_full ~len =
 
 let copy t = Bytes.copy t
 
-let append_internal ~a ~length_a ~b ~length_b ~get_b_bit ~get_b_element ~new_vector =
+let [@inline always] append_internal
+    ~a ~length_a ~b ~length_b ~get_b_bit ~get_b_element ~new_vector
+  =
   let words_a = total_words ~length:length_a in
   let words_b = total_words ~length:length_b in
   for i = 1 to words_a do
@@ -411,17 +413,19 @@ let append a b =
   let length_b = length b in
   let length = length_a + length_b in
   let new_vector = create ~len:length in
-  append_internal ~a ~length_a ~b ~length_b ~get_b_bit:Unsafe.get ~get_b_element:Element.get ~new_vector
+  append_internal
+    ~a ~length_a
+    ~b ~length_b 
+    ~get_b_bit:Unsafe.get ~get_b_element:Element.get
+    ~new_vector
 
 let extend ~by t =
   let length_t = length t in
   let len = length_t + by in
   let new_vector = create ~len in
   append_internal
-    ~a:t
-    ~length_a:length_t
-    ~b:()
-    ~length_b:by
+    ~a:t ~length_a:length_t
+    ~b:() ~length_b:by
     ~new_vector
     ~get_b_bit:(fun _ _ -> false)
     ~get_b_element:(fun _ _ -> Element.zero)
