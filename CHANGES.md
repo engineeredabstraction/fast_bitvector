@@ -4,7 +4,7 @@
 - Better error messages for safe functions
 - Fix big-endian architecture compatibility
 - Remove returned bitvector in ops, user is now required to track it themselves
-- Add `Inplace` variant of all ops in a submodule
+- Use `~dst` instead of `~result`
 - Add `Allocate` variant of all ops in a submodule
 
 ## 0.0.5
