@@ -306,6 +306,8 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
     Element.set t index v'
 
   let equal a b =
+    (length a = length b)
+    &&
     foldop2 a b
       ~init:true
       ~f:(fun acc a b ->
@@ -442,13 +444,18 @@ let map t ~f =
 
 open Sexplib0
 
-module Bit_zero_first' = struct
+module type Bit_ordering_spec = sig
+  val sexp_name : string
+  val get_index : length:int -> i:int -> int
+end
+
+module Bit_ordering_conversion(Spec : Bit_ordering_spec) = struct
   type nonrec t = t
 
   let to_string t =
     let length = length t in
     (String.init [@inlined hint]) length (fun i ->
-        if Unsafe.get t i
+        if Unsafe.get t (Spec.get_index ~length ~i)
         then '1'
         else '0'
       )
@@ -457,7 +464,7 @@ module Bit_zero_first' = struct
     let length = String.length s in
     init length
       ~f:(fun i ->
-          match String.unsafe_get s i with
+          match String.unsafe_get s (Spec.get_index ~length ~i) with
           | '0' -> false
           | '1' -> true
           | other ->
@@ -466,42 +473,22 @@ module Bit_zero_first' = struct
 
   let sexp_of_t t =
     Sexp.List
-      [ Sexp.Atom "B0F"
+      [ Sexp.Atom Spec.sexp_name
       ; Sexp.Atom (to_string t)
       ]
 end
 
-module Bit_zero_last' = struct
-  type nonrec t = t
+module Bit_zero_first' =
+  Bit_ordering_conversion(struct
+      let sexp_name = "B0F"
+      let get_index ~length:_ ~i = i
+    end)
 
-  let to_string t =
-    let length = length t in
-    (String.init [@inlined hint]) length (fun i ->
-        if Unsafe.get t (length - (i + 1))
-        then '1'
-        else '0'
-      )
-
-  let of_string s =
-    let length = String.length s in
-    let result =
-      init length
-        ~f:(fun i ->
-            match String.get s (length - (i + 1)) with
-            | '0' -> false
-            | '1' -> true
-            | other ->
-              failwithf "invalid char '%c'" other
-          )
-    in
-    result
-
-  let sexp_of_t t =
-    Sexp.List
-      [ Sexp.Atom "B0L"
-      ; Sexp.Atom (to_string t)
-      ]
-end
+module Bit_zero_last' =
+  Bit_ordering_conversion(struct
+      let sexp_name = "B0L"
+      let get_index ~length ~i = length - (i + 1)
+    end)
 
 let t_of_sexp = function
   | Sexp.List
