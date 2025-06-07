@@ -256,6 +256,8 @@ module [@inline always] Ops(Check : Check) = struct
     Element.set t index v'
 
   let equal a b =
+    (length a = length b)
+    &&
     foldop2 a b
       ~init:true
       ~f:(fun acc a b ->
