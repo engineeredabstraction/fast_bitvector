@@ -146,3 +146,61 @@ let%expect_test "Logical" =
     |}]
 
 
+
+let%expect_test "Logical(big)" = 
+  let f () = Fast_bitvector.create ~len:20 in
+  let a0, a1, a2, a3 = f (), f (), f (), f () in
+  let b0, b1, b2, b3 = f (), f (), f (), f () in
+  let c = Fast_bitvector.create ~len:80 in
+  Fast_bitvector.set_all a2;
+  Fast_bitvector.set_all a3;
+  Fast_bitvector.set_all b1;
+  Fast_bitvector.set_all b3;
+  let a = Fast_bitvector.append a0 (Fast_bitvector.append a1 (Fast_bitvector.append a2 a3)) in
+  let b = Fast_bitvector.append b0 (Fast_bitvector.append b1 (Fast_bitvector.append b2 b3)) in
+  ();
+  Fast_bitvector.and_ ~dst:c a b;
+  print_s [%message "and" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
+  ];
+  [%expect {|
+    (and
+      (a (
+        B0L
+        00000000000000001111111111111111111111110000000000000000000000000000000000000000))
+      (b (
+        B0L
+        11111111111111111111000000000000000000001111111111111111111100000000000000000000))
+      (c (
+        B0L
+        00000000000000001111000000000000000000000000000000000000000000000000000000000000)))
+    |}];
+  Fast_bitvector.or_ ~dst:c a b;
+  print_s [%message "or" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
+  ];
+  [%expect {|
+    (or
+      (a (
+        B0L
+        00000000000000001111111111111111111111110000000000000000000000000000000000000000))
+      (b (
+        B0L
+        11111111111111111111000000000000000000001111111111111111111100000000000000000000))
+      (c (
+        B0L
+        11111111111111111111111111111111111111111111111111111111111100000000000000000000)))
+    |}];
+  Fast_bitvector.xor ~dst:c a b;
+  print_s [%message "xor" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
+  ];
+  [%expect {|
+    (xor
+      (a (
+        B0L
+        00000000000000001111111111111111111111110000000000000000000000000000000000000000))
+      (b (
+        B0L
+        11111111111111111111000000000000000000001111111111111111111100000000000000000000))
+      (c (
+        B0L
+        11111111111111110000111111111111111111111111111111111111111100000000000000000000)))
+    |}]
