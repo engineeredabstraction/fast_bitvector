@@ -409,15 +409,9 @@ let copy t =
 
 module Bitblit = struct
   let loop ~src ~src_pos ~dst ~dst_pos ~len =
-    try
     for i = 0 to pred len do
-      set_to dst (dst_pos + i) (get src (src_pos + i))
+      Unsafe.set_to dst (dst_pos + i) (Unsafe.get src (src_pos + i))
     done
-    with
-    | exn ->
-      failwithf "bitblit: src_pos: %d, dst_pos: %d, len: %d, %s"
-        src_pos dst_pos len
-        (Printexc.to_string exn)
 
   let element_merge ~src ~src_pos ~dst ~dst_element_pos ~len_elements =
     let src_element_pos = 1 + (src_pos lsr Element.shift) in
@@ -453,8 +447,8 @@ module Bitblit = struct
     let first_loop_length = Int.max 0 (first_loop_stop - first_loop_start) in
     let remaining_length = Int.max 0 (len - (first_loop_length + full_loop_bit_length)) in
     let last_loop_start = full_loop_bit_stop in
-    let last_loop_stop = last_loop_start + remaining_length in
     (*
+    let last_loop_stop = last_loop_start + remaining_length in
     Printf.printf "%d => [%d, %d)->[%d,%d)=%d;  [%d,%d)->[%d, %d)=%d;  [%d,%d)->[%d, %d)=%d\n"
       len
       src_pos (src_pos + first_loop_length)
