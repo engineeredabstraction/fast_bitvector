@@ -93,15 +93,17 @@ let max_length =
 let [@inline always] total_words ~length =
   (length + Element.bit_size - 1) lsr Element.shift
 
-let create ~len:new_length =
+let create_internal ~new_length ~init =
   if new_length > max_length
   then failwithf "length %d exceeds maximum length %d" new_length max_length;
   let total_data_words = (new_length + Element.bit_size - 1) / Element.bit_size in
   let total_words = total_data_words + 1 in
-  let t = Bytes.init (total_words * Element.byte_size) (fun _ -> '\x00') in
+  let t = Bytes.make (total_words * Element.byte_size) init in
   Element.set t 0 (Element.of_int new_length);
   assert (length t == new_length);
   t
+
+let create ~len:new_length = create_internal ~new_length ~init:'\000'
 
 let [@inline always] loop_set result value =
   let length = length result in
@@ -397,10 +399,7 @@ let init new_length ~f =
   done;
   t
 
-let create_full ~len =
-  let t = create ~len in
-  Unsafe.not ~dst:t t;
-  t
+let create_full ~len:new_length = create_internal ~new_length ~init:'\xFF'
 
 let copy t =
   Bytes.copy t
