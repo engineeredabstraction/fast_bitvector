@@ -14,6 +14,7 @@ module type Element = sig
   val bit_size : int
   val byte_size : int
   val shift : int
+  val index_mask : int
 
   val equal : t -> t -> bool
 
@@ -45,6 +46,7 @@ module Element_32 = struct
   let bit_size = 32
   let byte_size = 4
   let shift = 5
+  let index_mask = 31
 
   external get : bytes -> int -> t = "%caml_bytes_get32u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set32u"
@@ -64,6 +66,7 @@ module Element_64 = struct
   let bit_size = 64
   let byte_size = 8
   let shift = 6
+  let index_mask = 63
 
   external get : bytes -> int -> t = "%caml_bytes_get64u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set64u"
@@ -404,21 +407,78 @@ let create_full ~len:new_length = create_internal ~new_length ~init:'\xFF'
 let copy t =
   Bytes.copy t
 
-let bitblit_loop ~src ~src_pos ~dst ~dst_pos ~len =
-  for i = 0 to pred len do
-    Unsafe.set_to dst (dst_pos + i) (Unsafe.get src (src_pos + i))
-  done
+module Bitblit = struct
+  let loop ~src ~src_pos ~dst ~dst_pos ~len =
+    try
+    for i = 0 to pred len do
+      set_to dst (dst_pos + i) (get src (src_pos + i))
+    done
+    with
+    | exn ->
+      failwithf "bitblit: src_pos: %d, dst_pos: %d, len: %d, %s"
+        src_pos dst_pos len
+        (Printexc.to_string exn)
 
-(*
-let bitblit ~src ~src_pos ~dst ~dst_pos ~len =
-  let length_src = length src in
-  let length_dst = length dst in
-  if length_src - src_pos < len
-  then failwithf "bitblit: source too short: %d < %d" (length_src - src_pos) len;
-  if length_dst - dst_pos < len
-  then failwithf "bitblit: destination too short: %d < %d" (length_dst - dst_pos) len;
-  ()
-   *)
+  let element_merge ~src ~src_pos ~dst ~dst_element_pos ~len_elements =
+    let src_element_pos = 1 + (src_pos lsr Element.shift) in
+    let src_element_offset = src_pos land Element.index_mask in
+    for i = 0 to pred len_elements do
+      let src_element0 = Element.get src (src_element_pos + i) in
+      let src_element1 = Element.get src (1 + src_element_pos + i) in
+      let dst_element = 
+        Element.logor
+          (Element.shift_right_logical src_element0 src_element_offset)
+          (Element.shift_left src_element1 (Element.bit_size - src_element_offset))
+      in
+      Element.set dst (1 + dst_element_pos + i) dst_element
+    done
+
+  let bitblit ~src ~src_pos ~dst ~dst_pos ~len =
+    let length_src = length src in
+    let length_dst = length dst in
+    if length_src - src_pos < len
+    then failwithf "bitblit: source too short: %d < %d" (length_src - src_pos) len;
+    if length_dst - dst_pos < len
+    then failwithf "bitblit: destination too short: %d < %d" (length_dst - dst_pos) len;
+    (* First, loop until we can write full elements in the destination, then clean
+       up any remainder *)
+    let first_loop_start = dst_pos in
+    let full_loop_element_start = ((dst_pos + Element.bit_size -1) lsr Element.shift) in
+    let full_loop_bit_start = full_loop_element_start * Element.bit_size in
+    let full_loop_element_stop = ((dst_pos + len - 1) lsr Element.shift) in
+    let full_loop_element_length = Int.max 0 (full_loop_element_stop - full_loop_element_start) in
+    let full_loop_bit_stop = full_loop_element_stop * Element.bit_size in
+    let full_loop_bit_length = Int.max 0 (full_loop_bit_stop - full_loop_bit_start) in
+    let first_loop_stop = Int.min full_loop_bit_start (dst_pos + len) in
+    let first_loop_length = Int.max 0 (first_loop_stop - first_loop_start) in
+    let remaining_length = Int.max 0 (len - (first_loop_length + full_loop_bit_length)) in
+    let last_loop_start = full_loop_bit_stop in
+    let last_loop_stop = last_loop_start + remaining_length in
+    (*
+    Printf.printf "%d => [%d, %d)->[%d,%d)=%d;  [%d,%d)->[%d, %d)=%d;  [%d,%d)->[%d, %d)=%d\n"
+      len
+      src_pos (src_pos + first_loop_length)
+      first_loop_start first_loop_stop first_loop_length
+      (src_pos + first_loop_length) (src_pos + first_loop_length + full_loop_bit_length)
+      full_loop_bit_start full_loop_bit_stop (full_loop_bit_stop - full_loop_bit_start)
+      (src_pos + first_loop_length + full_loop_bit_length)
+      (src_pos + first_loop_length + full_loop_bit_length + remaining_length)
+      last_loop_start last_loop_stop remaining_length
+    ;
+       *)
+    if len <> first_loop_length + full_loop_bit_length + remaining_length
+    then failwithf "bitblit: length mismatch, len=%d, first_loop_length=%d, full_loop_bit_length=%d, remaining_length=%d" len first_loop_length full_loop_bit_length remaining_length;
+    loop ~src ~src_pos ~dst ~dst_pos ~len:first_loop_length;
+    element_merge
+      ~src ~src_pos:(src_pos + first_loop_length)
+      ~dst ~dst_element_pos:full_loop_element_start
+      ~len_elements:full_loop_element_length;
+    loop
+      ~src ~src_pos:(src_pos + first_loop_length + full_loop_bit_length)
+      ~dst ~dst_pos:last_loop_start
+      ~len:remaining_length
+end
+
 
 let append a b =
   let length_a = length a in
@@ -429,7 +489,7 @@ let append a b =
   for i = 1 to words_a do
     Element.set t i (Element.get a i)
   done;
-  bitblit_loop ~src:b ~dst:t ~src_pos:0 ~dst_pos:length_a ~len:length_b;
+  Bitblit.bitblit ~src:b ~dst:t ~src_pos:0 ~dst_pos:length_a ~len:length_b;
   t 
 
 let [@inline always] fold ~init ~f t =
