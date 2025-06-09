@@ -3,7 +3,11 @@
 - New, more clear, sexp representation
 - Better error messages for safe functions
 - Fix big-endian architecture compatibility
+- Remove returned bitvector in ops, user is now required to track it themselves
+- Use `~dst` instead of `~result`
+- Add `Allocate` variant of all ops in a submodule
 - Allow equality check between different-length bitvectors
+
 
 ## 0.0.5
 - 32-bit compatible

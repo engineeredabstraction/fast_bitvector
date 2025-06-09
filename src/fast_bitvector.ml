@@ -160,7 +160,7 @@ let is_full t =
     ~init:true
     ~f:(fun acc v -> acc &&& (Element.equal v Element.minus_one))
     ~final:(fun ~mask a -> Element.logor (Element.lognot mask) a)
-    
+
 module type Check = sig
   val index : t -> int -> unit
 
@@ -168,29 +168,79 @@ module type Check = sig
   val length3 : t -> t -> t -> int
 end
 
-module [@inline always] Ops(Check : Check) = struct
-  let [@inline always] logop1 ~f a result =
-    let length = Check.length2 a result in
-    let total_words = total_words ~length in
-    for i = 1 to total_words do
-      Element.set result i
-        (f
-           (Element.get a i)
-        )
-    done;
-    result
+module type Make_result = sig
+  type t' := t
 
-  let [@inline always] logop2 ~f a b result =
-    let length = Check.length3 a b result in
-    let total_words = total_words ~length in
-    for i = 1 to total_words do
-      Element.set result i
-        (f
-           (Element.get a i)
-           (Element.get b i)
-        )
-    done;
-    result
+  type _ t
+
+  val wrap_1 : (t' -> t' -> unit) -> (t' -> _ t)
+  val wrap_2 : (t' -> t' -> t' -> unit) -> (t' -> t' -> _ t)
+end
+
+module Explicit_result = struct
+  type t' = t
+
+  type _ t = dst: t' -> unit
+
+  let [@inline always] wrap_1 (f : t' -> t' -> unit) : (t' -> 'a t) =
+    fun bv ~dst ->
+      (f [@inlined hint]) bv dst
+
+  let [@inline always] wrap_2 (f : t' -> t' -> t' -> unit) : (t' -> t' -> 'a t) =
+    fun bv1 bv2 ~dst ->
+      (f [@inlined hint]) bv1 bv2 dst
+end
+
+module _ : Make_result =
+  Explicit_result
+
+module Allocate_result = struct
+  type t' = t
+
+  type _ t = t'
+
+  let [@inline always] wrap_1 (f : t' -> t' -> unit) : (t' -> 'a t) =
+    fun bv ->
+      let res_bv = create ~len:(length bv) in
+      f bv res_bv;
+      res_bv
+
+  let [@inline always] wrap_2 (f : t' -> t' -> t' -> unit) : (t' -> t' -> 'a t) =
+    fun bv1 bv2 ->
+      let res_bv = create ~len:(length bv1) in
+      f bv1 bv2 res_bv;
+      res_bv
+
+end
+
+module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
+  let [@inline always] logop1 ~f =
+    let [@inline always] inner_f a result =
+      let length = Check.length2 a result in
+      let total_words = total_words ~length in
+      for i = 1 to total_words do
+        Element.set result i
+          (f
+             (Element.get a i)
+          )
+      done;
+    in
+    Make_result.wrap_1 inner_f
+
+
+  let [@inline always] logop2 ~f =
+    let [@inline always] inner_f a b result =
+      let length = Check.length3 a b result in
+      let total_words = total_words ~length in
+      for i = 1 to total_words do
+        Element.set result i
+          (f
+             (Element.get a i)
+             (Element.get b i)
+          )
+      done;
+    in
+    Make_result.wrap_2 inner_f
 
   let [@inline always] foldop2 ~init ~f ~final a b =
     let length = Check.length2 a b in
@@ -267,17 +317,13 @@ module [@inline always] Ops(Check : Check) = struct
         )
       ~final:(fun ~mask a -> Element.logand mask a)
 
-  let not ~result a =
-    logop1 ~f:Element.lognot a result
+  let [@inline always] not a = logop1 ~f:Element.lognot a
 
-  let and_ ~result a b =
-    logop2 ~f:Element.logand a b result
+  let [@inline always] and_ a b = logop2 ~f:Element.logand a b
 
-  let or_ ~result a b =
-    logop2 ~f:Element.logor a b result
+  let [@inline always] or_ a b = logop2 ~f:Element.logor a b
 
-  let xor ~result a b =
-    logop2 ~f:Element.logxor a b result
+  let [@inline always] xor a b = logop2 ~f:Element.logxor a b
 
   module Set = struct
     let mem = get
@@ -286,10 +332,10 @@ module [@inline always] Ops(Check : Check) = struct
     let complement = not
     let symmetric_difference = xor
 
-    let difference ~result a b =
+    let [@inline always] difference a b =
       logop2 ~f:(fun a b ->
           Element.logand a (Element.lognot b)
-        ) a b result
+        ) a b
   end
 
 end
@@ -329,9 +375,15 @@ module Check_all = struct
     la
 end
 
-module Unsafe = Ops(Check_none)
+module Unsafe = Ops(Check_none)(Explicit_result)
 
-include Ops(Check_all)
+include Ops(Check_all)(Explicit_result)
+
+module Allocate = struct
+  module Unsafe = Ops(Check_none)(Allocate_result)
+
+  include Ops(Check_all)(Allocate_result)
+end
 
 let equal a b =
   let la = length a in
@@ -347,7 +399,8 @@ let init new_length ~f =
 
 let create_full ~len =
   let t = create ~len in
-  Unsafe.not ~result:t t
+  Unsafe.not ~dst:t t;
+  t
 
 let copy t =
   Bytes.copy t
