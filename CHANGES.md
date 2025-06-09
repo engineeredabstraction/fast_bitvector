@@ -1,4 +1,7 @@
 
+## 0.1.0.1
+- Simplify append, add test
+
 ## 0.1.0
 - New, more clear, sexp representation
 - Better error messages for safe functions

@@ -410,22 +410,14 @@ let append a b =
   let length_b = length b in
   let length = length_a + length_b in
   let words_a = total_words ~length:length_a in
-  let words_b = total_words ~length:length_b in
   let t = create ~len:length in
   for i = 1 to words_a do
     Element.set t i (Element.get a i)
   done;
-  let already_set = length_a mod Element.bit_size in
-  let to_set_in_first_element =
-    Int.min
-      length_b
-      (Element.bit_size - already_set)
-  in
-  for i = 0 to to_set_in_first_element - 1 do
-    Unsafe.set_to t (length_a + i) (Unsafe.get b i)
-  done;
-  for i = 1 to words_b do
-    Element.set t (words_a + i) (Element.get b i)
+  for i = 0 to pred length_b do
+    let target = length_a + i in
+    let source_value = Unsafe.get b i in
+    Unsafe.set_to t target source_value
   done;
   t
 
