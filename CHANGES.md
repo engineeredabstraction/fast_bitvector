@@ -1,4 +1,7 @@
 
+## Development
+- More efficient create
+
 ## 0.1.0.1
 - Simplify append, add test
 
