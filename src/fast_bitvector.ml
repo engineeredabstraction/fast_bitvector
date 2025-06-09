@@ -416,16 +416,24 @@ module Bitblit = struct
   let element_merge ~src ~src_pos ~dst ~dst_element_pos ~len_elements =
     let src_element_pos = 1 + (src_pos lsr Element.shift) in
     let src_element_offset = src_pos land Element.index_mask in
-    for i = 0 to pred len_elements do
-      let src_element0 = Element.get src (src_element_pos + i) in
-      let src_element1 = Element.get src (1 + src_element_pos + i) in
-      let dst_element = 
-        Element.logor
-          (Element.shift_right_logical src_element0 src_element_offset)
-          (Element.shift_left src_element1 (Element.bit_size - src_element_offset))
-      in
-      Element.set dst (1 + dst_element_pos + i) dst_element
-    done
+    if src_element_offset = 0
+    then begin
+      for i = 0 to pred len_elements do
+        let src_element = Element.get src (src_element_pos + i) in
+        Element.set dst (1 + dst_element_pos + i) src_element
+      done
+    end else begin
+      for i = 0 to pred len_elements do
+        let src_element0 = Element.get src (src_element_pos + i) in
+        let src_element1 = Element.get src (1 + src_element_pos + i) in
+        let dst_element = 
+          Element.logor
+            (Element.shift_right_logical src_element0 src_element_offset)
+            (Element.shift_left src_element1 (Element.bit_size - src_element_offset))
+        in
+        Element.set dst (1 + dst_element_pos + i) dst_element
+      done
+    end
 
   let bitblit ~src ~src_pos ~dst ~dst_pos ~len =
     let length_src = length src in
