@@ -404,6 +404,22 @@ let create_full ~len:new_length = create_internal ~new_length ~init:'\xFF'
 let copy t =
   Bytes.copy t
 
+let bitblit_loop ~src ~src_pos ~dst ~dst_pos ~len =
+  for i = 0 to pred len do
+    Unsafe.set_to dst (dst_pos + i) (Unsafe.get src (src_pos + i))
+  done
+
+(*
+let bitblit ~src ~src_pos ~dst ~dst_pos ~len =
+  let length_src = length src in
+  let length_dst = length dst in
+  if length_src - src_pos < len
+  then failwithf "bitblit: source too short: %d < %d" (length_src - src_pos) len;
+  if length_dst - dst_pos < len
+  then failwithf "bitblit: destination too short: %d < %d" (length_dst - dst_pos) len;
+  ()
+   *)
+
 let append a b =
   let length_a = length a in
   let length_b = length b in
@@ -413,12 +429,8 @@ let append a b =
   for i = 1 to words_a do
     Element.set t i (Element.get a i)
   done;
-  for i = 0 to pred length_b do
-    let target = length_a + i in
-    let source_value = Unsafe.get b i in
-    Unsafe.set_to t target source_value
-  done;
-  t
+  bitblit_loop ~src:b ~dst:t ~src_pos:0 ~dst_pos:length_a ~len:length_b;
+  t 
 
 let [@inline always] fold ~init ~f t =
   let length = length t in
