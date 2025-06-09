@@ -1,5 +1,5 @@
 
-## Development
+## 0.1.0
 - New, more clear, sexp representation
 - Better error messages for safe functions
 - Fix big-endian architecture compatibility
