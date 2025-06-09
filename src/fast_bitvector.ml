@@ -469,7 +469,10 @@ module Bitblit = struct
     ;
        *)
     if len <> first_loop_length + full_loop_bit_length + remaining_length
-    then failwithf "bitblit: length mismatch, len=%d, first_loop_length=%d, full_loop_bit_length=%d, remaining_length=%d" len first_loop_length full_loop_bit_length remaining_length;
+    then
+      failwithf
+        "bitblit: length mismatch, len=%d, first_loop_length=%d, full_loop_bit_length=%d, remaining_length=%d"
+        len first_loop_length full_loop_bit_length remaining_length;
     loop ~src ~src_pos ~dst ~dst_pos ~len:first_loop_length;
     element_merge
       ~src ~src_pos:(src_pos + first_loop_length)
