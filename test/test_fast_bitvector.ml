@@ -6,34 +6,34 @@ let%expect_test "Basic" =
   print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
   [%expect {|
     ((a (
-       LE
+       B0L
        0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
      (b (
-       LE
+       B0L
        0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000)))
     |}];
   Fast_bitvector.set a 0;
   print_s [%message "" (a : Fast_bitvector.t)];
   [%expect {|
     (a (
-      LE
+      B0L
       0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001))
     |}];
   Fast_bitvector.set a 99;
   print_s [%message "" (a : Fast_bitvector.t)];
   [%expect {|
     (a (
-      LE
+      B0L
       1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001))
     |}];
   Fast_bitvector.not ~result:b a |> ignore;
   print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
   [%expect {|
     ((a (
-       LE
+       B0L
        1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001))
      (b (
-       LE
+       B0L
        0111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111110)))
     |}];
   Fast_bitvector.set_all a;
@@ -44,10 +44,10 @@ let%expect_test "Basic" =
   ];
   [%expect {|
     ((a (
-       LE
+       B0L
        1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111))
      (b (
-       LE
+       B0L
        0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
      ("Fast_bitvector.is_empty a" false)
      ("Fast_bitvector.is_empty b" true)
@@ -59,10 +59,10 @@ let%expect_test "Basic" =
   print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
   [%expect {|
     ((a (
-       LE
+       B0L
        1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111110))
      (b (
-       LE
+       B0L
        0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001)))
     |}];
 
@@ -74,7 +74,7 @@ let%expect_test "Popcount" =
   print_s [%message "" (a : Fast_bitvector.t) (pop : int)];
   [%expect {|
     ((a (
-       LE
+       B0L
        0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
      (pop 0))
     |}];
@@ -83,7 +83,7 @@ let%expect_test "Popcount" =
   print_s [%message "" (a : Fast_bitvector.t) (pop : int)];
   [%expect {|
     ((a (
-       LE
+       B0L
        1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111))
      (pop 100))
     |}];
@@ -94,7 +94,7 @@ let%expect_test "Popcount" =
   let pop = Fast_bitvector.popcount a in
   print_s [%message "" (pop : int)];
   [%expect {| (pop 8) |}];
-  let a = Fast_bitvector.Big_endian.of_string "0101101010101110101010" in
+  let a = Fast_bitvector.Bit_zero_first.of_string "0101101010101110101010" in
   let pop = Fast_bitvector.popcount a in
   print_s [%message "" (pop : int)];
   [%expect {| (pop 12) |}];
@@ -112,13 +112,13 @@ let%expect_test "Append" =
   print_s [%message "" (a100 : Fast_bitvector.t) (b100 : Fast_bitvector.t) (c : Fast_bitvector.t)];
   [%expect {|
     ((a100 (
-       LE
+       B0L
        1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111))
      (b100 (
-       LE
+       B0L
        0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
      (c (
-       LE
+       B0L
        00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111)))
     |}]
 
@@ -170,8 +170,8 @@ let%expect_test "Extend" =
   print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.is_full a : bool)];
   [%expect
     {|
-    ((a (LE 1111111111))
-     (b (LE 0000001111111111))
+    ((a (B0L 1111111111))
+     (b (B0L 0000001111111111))
      ("Fast_bitvector.is_full a" true))
     |}];
   let a = Fast_bitvector.create_full ~len:65 in
@@ -179,16 +179,16 @@ let%expect_test "Extend" =
   print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
   [%expect
     {|
-    ((a (LE 11111111111111111111111111111111111111111111111111111111111111111))
-     (b (LE 011111111111111111111111111111111111111111111111111111111111111111)))
+    ((a (B0L 11111111111111111111111111111111111111111111111111111111111111111))
+     (b (B0L 011111111111111111111111111111111111111111111111111111111111111111)))
     |}];
   let a = Fast_bitvector.create_full ~len:10 in
   let b = Fast_bitvector.extend_inplace a ~len:16 in
   print_s [%message "" (a : Fast_bitvector.t) (b : Fast_bitvector.t)];
   [%expect
     {|
-    ((a (LE 0000001111111111))
-     (b (LE 0000001111111111)))
+    ((a (B0L 0000001111111111))
+     (b (B0L 0000001111111111)))
     |}];
   let a = [true;false;true;true;false;false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
   let b = Fast_bitvector.extend a ~len:16 in
@@ -196,47 +196,51 @@ let%expect_test "Extend" =
   print_s [%message "" (a : Fast_bitvector.t) (c : Fast_bitvector.t)];
   [%expect
     {|
-    ((a (LE 1001101))
-     (c (LE 1001101)))
+    ((a (B0L 1001101))
+     (c (B0L 1001101)))
     |}]
 
-let%expect_test "Logical" = 
-  let f () = Fast_bitvector.create ~len:10 in
+let init_mixed ?(len=10)() =
+  let f () = Fast_bitvector.create ~len in
   let a0, a1, a2, a3 = f (), f (), f (), f () in
   let b0, b1, b2, b3 = f (), f (), f (), f () in
-  let c = Fast_bitvector.create ~len:40 in
+  let c = Fast_bitvector.create ~len:(4 * len) in
   Fast_bitvector.set_all a2;
   Fast_bitvector.set_all a3;
   Fast_bitvector.set_all b1;
   Fast_bitvector.set_all b3;
   let a = Fast_bitvector.append a0 (Fast_bitvector.append a1 (Fast_bitvector.append a2 a3)) in
   let b = Fast_bitvector.append b0 (Fast_bitvector.append b1 (Fast_bitvector.append b2 b3)) in
+  a, b, c
+
+let%expect_test "Logical" = 
+  let a, b, c = init_mixed () in
   let _ = Fast_bitvector.and_ ~result:c a b in
   print_s [%message "and" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
   ];
   [%expect {|
     (and
-      (a (LE 1111111111111111111100000000000000000000))
-      (b (LE 1111111111000000000011111111110000000000))
-      (c (LE 1111111111000000000000000000000000000000)))
+      (a (B0L 1111111111111111111100000000000000000000))
+      (b (B0L 1111111111000000000011111111110000000000))
+      (c (B0L 1111111111000000000000000000000000000000)))
     |}];
   let _ = Fast_bitvector.or_ ~result:c a b in
   print_s [%message "or" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
   ];
   [%expect {|
     (or
-      (a (LE 1111111111111111111100000000000000000000))
-      (b (LE 1111111111000000000011111111110000000000))
-      (c (LE 1111111111111111111111111111110000000000)))
+      (a (B0L 1111111111111111111100000000000000000000))
+      (b (B0L 1111111111000000000011111111110000000000))
+      (c (B0L 1111111111111111111111111111110000000000)))
     |}];
   let _ = Fast_bitvector.xor ~result:c a b in
   print_s [%message "xor" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)
   ];
   [%expect {|
     (xor
-      (a (LE 1111111111111111111100000000000000000000))
-      (b (LE 1111111111000000000011111111110000000000))
-      (c (LE 0000000000111111111111111111110000000000)))
+      (a (B0L 1111111111111111111100000000000000000000))
+      (b (B0L 1111111111000000000011111111110000000000))
+      (c (B0L 0000000000111111111111111111110000000000)))
     |}];
   let empty = Fast_bitvector.create ~len:0 in
   let b = [false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
@@ -245,8 +249,8 @@ let%expect_test "Logical" =
   print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal c empty : bool)];
   [%expect {|
     (equal
-      (a (LE 1))
-      (b (LE 10))
+      (a (B0L 1))
+      (b (B0L 10))
       ("Fast_bitvector.Relaxed.equal c empty" true))
     |}];
   let a = [false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
@@ -255,32 +259,32 @@ let%expect_test "Logical" =
   print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.equal a b : bool)];
   [%expect {|
     (equal
-      (a (LE 10))
-      (b (LE 10))
+      (a (B0L 10))
+      (b (B0L 10))
       ("Fast_bitvector.equal a b" true))
     |}];
-  let a = Fast_bitvector.Big_endian.of_string "01110100101" in 
-  let b = Fast_bitvector.Big_endian.of_string "01100100000" in 
-  let c = Fast_bitvector.Big_endian.of_string "01010010000" in 
+  let a = Fast_bitvector.Bit_zero_first.of_string "01110100101" in 
+  let b = Fast_bitvector.Bit_zero_first.of_string "01100100000" in 
+  let c = Fast_bitvector.Bit_zero_first.of_string "01010010000" in 
   print_s [%message "subset" (Fast_bitvector.subset b a: bool) (Fast_bitvector.subset c a: bool)];
   [%expect {|
     (subset
       ("Fast_bitvector.subset b a" true)
       ("Fast_bitvector.subset c a" false))
     |}];
-  let a = Fast_bitvector.Big_endian.of_string "01011000100" in 
-  let b = Fast_bitvector.Big_endian.of_string "00000110010" in 
-  let c = Fast_bitvector.Big_endian.of_string "00110110010" in 
+  let a = Fast_bitvector.Bit_zero_first.of_string "01011000100" in 
+  let b = Fast_bitvector.Bit_zero_first.of_string "00000110010" in 
+  let c = Fast_bitvector.Bit_zero_first.of_string "00110110010" in 
   print_s [%message "disjoint" (Fast_bitvector.disjoint b a: bool) (Fast_bitvector.disjoint a c: bool)];
   [%expect {|
     (disjoint 
       ("Fast_bitvector.disjoint b a" true)
       ("Fast_bitvector.disjoint a c" false))
     |}];
-  let a = Fast_bitvector.Big_endian.of_string "01001101101" in 
-  let b = Fast_bitvector.Big_endian.of_string "01101000100" in 
-  let c = Fast_bitvector.Big_endian.of_string "11101010100" in 
-  let m = Fast_bitvector.Big_endian.of_string "11011010100" in 
+  let a = Fast_bitvector.Bit_zero_first.of_string "01001101101" in 
+  let b = Fast_bitvector.Bit_zero_first.of_string "01101000100" in 
+  let c = Fast_bitvector.Bit_zero_first.of_string "11101010100" in 
+  let m = Fast_bitvector.Bit_zero_first.of_string "11011010100" in 
   print_s [%message "modulo" (Fast_bitvector.equal_modulo ~modulo:m a b: bool) (Fast_bitvector.equal_modulo ~modulo:m a c: bool)];
   [%expect {|
     (modulo 
@@ -303,11 +307,11 @@ let%expect_test "Convertion roundtrips" =
   [%expect
     {|
     (iters/seqs
-      (a (LE 0101010101))
-      (b (LE 0101010101))
-      (c (LE 0101010101))
-      (d (LE 101010101))
-      (e (LE 101010101)))
+      (a (B0L 0101010101))
+      (b (B0L 0101010101))
+      (c (B0L 0101010101))
+      (d (B0L 101010101))
+      (e (B0L 101010101)))
     |}];
   let b = a |> (fun t f -> Fast_bitvector.rev_iter ~f t) |> Fast_bitvector.of_bool_iter in
   let c = a |> (fun t f -> Fast_bitvector.rev_iter_seti ~f t) |> Fast_bitvector.of_offset_iter in
@@ -319,14 +323,14 @@ let%expect_test "Convertion roundtrips" =
   [%expect
     {|
     (reverse
-      (b (LE 1010101010))
-      (c (LE 101010101))
-      (d (LE 1010101010))
-      (e (LE 101010101)))
+      (b (B0L 1010101010))
+      (c (B0L 101010101))
+      (d (B0L 1010101010))
+      (e (B0L 101010101)))
     |}];
-    let b = a |> Fast_bitvector.Big_endian.to_string |> Fast_bitvector.Big_endian.of_string in
+    let b = a |> Fast_bitvector.Bit_zero_first.to_string |> Fast_bitvector.Bit_zero_first.of_string in
   print_s [%message "strings" (b : Fast_bitvector.t)];
-  [%expect {| (strings (b (LE 0101010101))) |}]
+  [%expect {| (strings (b (B0L 0101010101))) |}]
 
 let%expect_test "Relaxed" = 
   let f () = Fast_bitvector.create ~len:10 in
@@ -344,49 +348,49 @@ let%expect_test "Relaxed" =
   print_s [%message "inter" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
   [%expect {|
     (inter
-      (a (LE 111111111100000000000000000000))
-      (b (LE 1111111111000000000011111111110000000000))
-      (c (LE 0000000000000000000000000000000000000000)))
+      (a (B0L 111111111100000000000000000000))
+      (b (B0L 1111111111000000000011111111110000000000))
+      (c (B0L 0000000000000000000000000000000000000000)))
     |}];
   let _ = Fast_bitvector.Relaxed.inter ~result:d a b in
   print_s [%message "inter" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
   [%expect {|
     (inter
-      (a (LE 111111111100000000000000000000))
-      (b (LE 1111111111000000000011111111110000000000))
-      (c (LE 0000000000000000000000000000000000000000)))
+      (a (B0L 111111111100000000000000000000))
+      (b (B0L 1111111111000000000011111111110000000000))
+      (c (B0L 0000000000000000000000000000000000000000)))
     |}];
   let _ = Fast_bitvector.Relaxed.union ~result:c a b in
   print_s [%message "union" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
   [%expect {|
     (union
-      (a (LE 111111111100000000000000000000))
-      (b (LE 1111111111000000000011111111110000000000))
-      (c (LE 1111111111111111111111111111110000000000)))
+      (a (B0L 111111111100000000000000000000))
+      (b (B0L 1111111111000000000011111111110000000000))
+      (c (B0L 1111111111111111111111111111110000000000)))
     |}];
   let _ = Fast_bitvector.Relaxed.symmetric_diff ~result:c a b in
   print_s [%message "symdiff" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
   [%expect {|
     (symdiff
-      (a (LE 111111111100000000000000000000))
-      (b (LE 1111111111000000000011111111110000000000))
-      (c (LE 1111111111111111111111111111110000000000)))
+      (a (B0L 111111111100000000000000000000))
+      (b (B0L 1111111111000000000011111111110000000000))
+      (c (B0L 1111111111111111111111111111110000000000)))
     |}];
   let _ = Fast_bitvector.Relaxed.diff ~result:c a b in
   print_s [%message "diff" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t)];
   [%expect {|
     (diff
-      (a (LE 111111111100000000000000000000))
-      (b (LE 1111111111000000000011111111110000000000))
-      (c (LE 0000000000111111111100000000000000000000)))
+      (a (B0L 111111111100000000000000000000))
+      (b (B0L 1111111111000000000011111111110000000000))
+      (c (B0L 0000000000111111111100000000000000000000)))
     |}];
   let a = Fast_bitvector.append a0 (Fast_bitvector.append a2 a1) in
   let b = Fast_bitvector.append a0 a2 in
   print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal a b : bool)];
   [%expect {|
     (equal
-      (a (LE 000000000011111111110000000000))
-      (b (LE 11111111110000000000))
+      (a (B0L 000000000011111111110000000000))
+      (b (B0L 11111111110000000000))
       ("Fast_bitvector.Relaxed.equal a b" true))
     |}];
   let a = Fast_bitvector.append a0 (Fast_bitvector.append a2 a1) in
@@ -394,8 +398,8 @@ let%expect_test "Relaxed" =
   print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal a b : bool)];
   [%expect {|
     (equal
-      (a (LE 000000000011111111110000000000))
-      (b (LE ""))
+      (a (B0L 000000000011111111110000000000))
+      (b (B0L ""))
       ("Fast_bitvector.Relaxed.equal a b" false))
     |}];
   let empty = Fast_bitvector.create ~len:0 in
@@ -405,43 +409,458 @@ let%expect_test "Relaxed" =
   print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal c empty : bool)];
   [%expect {|
     (equal
-      (a (LE 1))
-      (b (LE 10))
+      (a (B0L 1))
+      (b (B0L 10))
       ("Fast_bitvector.Relaxed.equal c empty" true))
     |}];
-  let a = Fast_bitvector.Big_endian.of_string "01110100101" in 
-  let b = Fast_bitvector.Big_endian.of_string "0110010" in 
-  let c = Fast_bitvector.Big_endian.of_string "010100100" in 
+  let a = Fast_bitvector.Bit_zero_first.of_string "01110100101" in 
+  let b = Fast_bitvector.Bit_zero_first.of_string "0110010" in 
+  let c = Fast_bitvector.Bit_zero_first.of_string "010100100" in 
   print_s [%message "subset" (Fast_bitvector.Relaxed.subset b a: bool) (Fast_bitvector.Relaxed.subset c a: bool)];
   [%expect {|
     (subset
       ("Fast_bitvector.Relaxed.subset b a" true)
       ("Fast_bitvector.Relaxed.subset c a" false))
     |}];
-  let a = Fast_bitvector.Big_endian.of_string "01011000" in 
-  let b = Fast_bitvector.Big_endian.of_string "00000110010" in 
-  let c = Fast_bitvector.Big_endian.of_string "00110110010" in 
+  let a = Fast_bitvector.Bit_zero_first.of_string "01011000" in 
+  let b = Fast_bitvector.Bit_zero_first.of_string "00000110010" in 
+  let c = Fast_bitvector.Bit_zero_first.of_string "00110110010" in 
   print_s [%message "disjoint" (Fast_bitvector.Relaxed.disjoint b a: bool) (Fast_bitvector.Relaxed.disjoint a c: bool)];
   [%expect {|
     (disjoint 
       ("Fast_bitvector.Relaxed.disjoint b a" true)
       ("Fast_bitvector.Relaxed.disjoint a c" false))
     |}];
-  let a = Fast_bitvector.Big_endian.of_string "01001101101" in 
-  let b = Fast_bitvector.Big_endian.of_string "011010001" in 
-  let c = Fast_bitvector.Big_endian.of_string "101010100" in 
-  let m = Fast_bitvector.Big_endian.of_string "11011010100" in 
+  let a = Fast_bitvector.Bit_zero_first.of_string "01001101101" in 
+  let b = Fast_bitvector.Bit_zero_first.of_string "011010001" in 
+  let c = Fast_bitvector.Bit_zero_first.of_string "101010100" in 
+  let m = Fast_bitvector.Bit_zero_first.of_string "11011010100" in 
   print_s [%message "modulo" (Fast_bitvector.Relaxed.equal_modulo ~modulo:m a b: bool) (Fast_bitvector.Relaxed.equal_modulo ~modulo:m a c: bool)];
   [%expect {|
     (modulo 
       ("Fast_bitvector.Relaxed.equal_modulo ~modulo:m a b" true)
       ("Fast_bitvector.Relaxed.equal_modulo ~modulo:m a c" false))
     |}];
-  let a = Fast_bitvector.Big_endian.of_string "01110100101" in 
+  let a = Fast_bitvector.Bit_zero_first.of_string "01110100101" in 
   print_s [%message "subset" (Fast_bitvector.Relaxed.mem a 0: bool) (Fast_bitvector.Relaxed.mem a 1: bool) (Fast_bitvector.Relaxed.mem a 20: bool)];
   [%expect {|
     (subset
       ("Fast_bitvector.Relaxed.mem a 0"  false)
       ("Fast_bitvector.Relaxed.mem a 1"  true)
       ("Fast_bitvector.Relaxed.mem a 20" false))
+    |}]
+
+let%expect_test "Conversion roundtrips (long)" =
+  let a, b, _ = init_mixed ~len:30 () in
+  let a_iter =
+    a |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.of_bool_iter
+  in
+  let a_seq = a |> Fast_bitvector.to_bool_seq |> Fast_bitvector.of_bool_seq in
+  let b_iter =
+    b |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.of_bool_iter
+  in
+  let b_seq = b |> Fast_bitvector.to_bool_seq |> Fast_bitvector.of_bool_seq in
+  print_s
+    [%message
+      "" (Fast_bitvector.equal a a_iter : bool) (Fast_bitvector.equal a a_seq : bool)
+      (Fast_bitvector.equal b b_iter : bool) (Fast_bitvector.equal b b_seq : bool)
+      (a : Fast_bitvector.t) (a_iter : Fast_bitvector.t) (a_seq : Fast_bitvector.t)
+      (b : Fast_bitvector.t) (b_iter : Fast_bitvector.t) (b_seq : Fast_bitvector.t)
+    ];
+  [%expect {|
+    (("Fast_bitvector.equal a a_iter" true)
+     ("Fast_bitvector.equal a a_seq"  true)
+     ("Fast_bitvector.equal b b_iter" true)
+     ("Fast_bitvector.equal b b_seq"  true)
+     (a (
+       B0L
+       111111111111111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000000000000000))
+     (a_iter (
+       B0L
+       111111111111111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000000000000000))
+     (a_seq (
+       B0L
+       111111111111111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000000000000000))
+     (b (
+       B0L
+       111111111111111111111111111111000000000000000000000000000000111111111111111111111111111111000000000000000000000000000000))
+     (b_iter (
+       B0L
+       111111111111111111111111111111000000000000000000000000000000111111111111111111111111111111000000000000000000000000000000))
+     (b_seq (
+       B0L
+       111111111111111111111111111111000000000000000000000000000000111111111111111111111111111111000000000000000000000000000000)))
+    |}]
+
+let%expect_test "builder" =
+  let t = Fast_bitvector.Builder.create () in
+  Fast_bitvector.Builder.push t true;
+  print_s [%message "" (Fast_bitvector.Builder.to_bitvector t : Fast_bitvector.t)];
+  [%expect {| ("Fast_bitvector.Builder.to_bitvector t" (B0L 1)) |}];
+  Fast_bitvector.Builder.push t false;
+  print_s [%message "" (Fast_bitvector.Builder.to_bitvector t : Fast_bitvector.t)];
+  [%expect {| ("Fast_bitvector.Builder.to_bitvector t" (B0L 01)) |}];
+  for i = 0 to 63 do
+    Fast_bitvector.Builder.push t (i mod 2 = 0);
+    let bv = Fast_bitvector.Builder.to_bitvector t in
+    print_s [%message "" ~len:(Fast_bitvector.length bv : int)
+        ~_:(bv : Fast_bitvector.Bit_zero_first.t)];
+  done;
+  [%expect {|
+    ((len 3)
+     (B0F 101))
+    ((len 4)
+     (B0F 1010))
+    ((len 5)
+     (B0F 10101))
+    ((len 6)
+     (B0F 101010))
+    ((len 7)
+     (B0F 1010101))
+    ((len 8)
+     (B0F 10101010))
+    ((len 9)
+     (B0F 101010101))
+    ((len 10)
+     (B0F 1010101010))
+    ((len 11)
+     (B0F 10101010101))
+    ((len 12)
+     (B0F 101010101010))
+    ((len 13)
+     (B0F 1010101010101))
+    ((len 14)
+     (B0F 10101010101010))
+    ((len 15)
+     (B0F 101010101010101))
+    ((len 16)
+     (B0F 1010101010101010))
+    ((len 17)
+     (B0F 10101010101010101))
+    ((len 18)
+     (B0F 101010101010101010))
+    ((len 19)
+     (B0F 1010101010101010101))
+    ((len 20)
+     (B0F 10101010101010101010))
+    ((len 21)
+     (B0F 101010101010101010101))
+    ((len 22)
+     (B0F 1010101010101010101010))
+    ((len 23)
+     (B0F 10101010101010101010101))
+    ((len 24)
+     (B0F 101010101010101010101010))
+    ((len 25)
+     (B0F 1010101010101010101010101))
+    ((len 26)
+     (B0F 10101010101010101010101010))
+    ((len 27)
+     (B0F 101010101010101010101010101))
+    ((len 28)
+     (B0F 1010101010101010101010101010))
+    ((len 29)
+     (B0F 10101010101010101010101010101))
+    ((len 30)
+     (B0F 101010101010101010101010101010))
+    ((len 31)
+     (B0F 1010101010101010101010101010101))
+    ((len 32)
+     (B0F 10101010101010101010101010101010))
+    ((len 33)
+     (B0F 101010101010101010101010101010101))
+    ((len 34)
+     (B0F 1010101010101010101010101010101010))
+    ((len 35)
+     (B0F 10101010101010101010101010101010101))
+    ((len 36)
+     (B0F 101010101010101010101010101010101010))
+    ((len 37)
+     (B0F 1010101010101010101010101010101010101))
+    ((len 38)
+     (B0F 10101010101010101010101010101010101010))
+    ((len 39)
+     (B0F 101010101010101010101010101010101010101))
+    ((len 40)
+     (B0F 1010101010101010101010101010101010101010))
+    ((len 41)
+     (B0F 10101010101010101010101010101010101010101))
+    ((len 42)
+     (B0F 101010101010101010101010101010101010101010))
+    ((len 43)
+     (B0F 1010101010101010101010101010101010101010101))
+    ((len 44)
+     (B0F 10101010101010101010101010101010101010101010))
+    ((len 45)
+     (B0F 101010101010101010101010101010101010101010101))
+    ((len 46)
+     (B0F 1010101010101010101010101010101010101010101010))
+    ((len 47)
+     (B0F 10101010101010101010101010101010101010101010101))
+    ((len 48) (B0F 101010101010101010101010101010101010101010101010))
+    ((len 49) (B0F 1010101010101010101010101010101010101010101010101))
+    ((len 50) (B0F 10101010101010101010101010101010101010101010101010))
+    ((len 51) (B0F 101010101010101010101010101010101010101010101010101))
+    ((len 52) (B0F 1010101010101010101010101010101010101010101010101010))
+    ((len 53) (B0F 10101010101010101010101010101010101010101010101010101))
+    ((len 54) (B0F 101010101010101010101010101010101010101010101010101010))
+    ((len 55) (B0F 1010101010101010101010101010101010101010101010101010101))
+    ((len 56) (B0F 10101010101010101010101010101010101010101010101010101010))
+    ((len 57) (B0F 101010101010101010101010101010101010101010101010101010101))
+    ((len 58) (B0F 1010101010101010101010101010101010101010101010101010101010))
+    ((len 59) (B0F 10101010101010101010101010101010101010101010101010101010101))
+    ((len 60) (B0F 101010101010101010101010101010101010101010101010101010101010))
+    ((len 61) (B0F 1010101010101010101010101010101010101010101010101010101010101))
+    ((len 62)
+     (B0F 10101010101010101010101010101010101010101010101010101010101010))
+    ((len 63)
+     (B0F 101010101010101010101010101010101010101010101010101010101010101))
+    ((len 64)
+     (B0F 1010101010101010101010101010101010101010101010101010101010101010))
+    ((len 65)
+     (B0F 10101010101010101010101010101010101010101010101010101010101010101))
+    ((len 66)
+     (B0F 101010101010101010101010101010101010101010101010101010101010101010))
+    |}]
+
+let%expect_test "Convertion roundtrips (builder)" =
+  let a = Fast_bitvector.create ~len:10 in
+  for i = 0 to 9 do 
+    Fast_bitvector.set_to a i ((Int.rem i 2) = 0)
+  done;
+  let b = a |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.Builder.of_iter |> Fast_bitvector.Builder.to_bitvector in
+  let c = a |> Fast_bitvector.to_bool_seq |> Fast_bitvector.Builder.of_seq |> Fast_bitvector.Builder.to_bitvector in 
+  print_s
+    [%message
+      "iters/seqs" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (c : Fast_bitvector.t) ];
+  [%expect
+    {|
+    (iters/seqs
+      (a (B0L 0101010101))
+      (b (B0L 0101010101))
+      (c (B0L 0101010101)))
     |}];
+  let a, b, _ = init_mixed ~len:30 () in
+  let a_iter = a |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.Builder.of_iter |> Fast_bitvector.Builder.to_bitvector in
+  let a_seq = a |> Fast_bitvector.to_bool_seq |> Fast_bitvector.Builder.of_seq |> Fast_bitvector.Builder.to_bitvector in 
+  let b_iter = b |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.Builder.of_iter |> Fast_bitvector.Builder.to_bitvector in
+  let b_seq = b |> Fast_bitvector.to_bool_seq |> Fast_bitvector.Builder.of_seq |> Fast_bitvector.Builder.to_bitvector in 
+  print_s
+    [%message
+      "" (Fast_bitvector.equal a a_iter : bool) (Fast_bitvector.equal a a_seq : bool)
+      (Fast_bitvector.equal b b_iter : bool) (Fast_bitvector.equal b b_seq : bool)
+    ];
+  [%expect {|
+    (("Fast_bitvector.equal a a_iter" true)
+     ("Fast_bitvector.equal a a_seq"  true)
+     ("Fast_bitvector.equal b b_iter" true)
+     ("Fast_bitvector.equal b b_seq"  true))
+    |} ]
+
+(* 
+let%expect_test "Or_int" =
+  let t = Fast_bitvector.create ~len:120 in
+  for i = 0 to 64 do
+    Fast_bitvector.clear_all t;
+    Fast_bitvector.With_int.or_ ~result:t t ~bit0_at:i (-1) |> ignore;
+    print_s [%message "" ~popcount:(Fast_bitvector.popcount t : int)
+        ~_:(t : Fast_bitvector.Bit_zero_first.t)];
+    ()
+  done;
+  [%expect {|
+    ((popcount 63)
+     (B0F
+      111111111111111111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      011111111111111111111111111111111111111111111111111111111111111100000000000000000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      001111111111111111111111111111111111111111111111111111111111111110000000000000000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000111111111111111111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000011111111111111111111111111111111111111111111111111111111111111100000000000000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000001111111111111111111111111111111111111111111111111111111111111110000000000000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000111111111111111111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000011111111111111111111111111111111111111111111111111111111111111100000000000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000001111111111111111111111111111111111111111111111111111111111111110000000000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000111111111111111111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000011111111111111111111111111111111111111111111111111111111111111100000000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000001111111111111111111111111111111111111111111111111111111111111110000000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000111111111111111111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000011111111111111111111111111111111111111111111111111111111111111100000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000001111111111111111111111111111111111111111111111111111111111111110000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000111111111111111111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000011111111111111111111111111111111111111111111111111111111111111100000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000001111111111111111111111111111111111111111111111111111111111111110000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000111111111111111111111111111111111111111111111111111111111111111000000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000011111111111111111111111111111111111111111111111111111111111111100000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000001111111111111111111111111111111111111111111111111111111111111110000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000111111111111111111111111111111111111111111111111111111111111111000000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000011111111111111111111111111111111111111111111111111111111111111100000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000001111111111111111111111111111111111111111111111111111111111111110000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000111111111111111111111111111111111111111111111111111111111111111000000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000011111111111111111111111111111111111111111111111111111111111111100000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000001111111111111111111111111111111111111111111111111111111111111110000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000111111111111111111111111111111111111111111111111111111111111111000000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000011111111111111111111111111111111111111111111111111111111111111100000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111110000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000111111111111111111111111111111111111111111111111111111111111111000000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000011111111111111111111111111111111111111111111111111111111111111100000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111110000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000111111111111111111111111111111111111111111111111111111111111111000000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000011111111111111111111111111111111111111111111111111111111111111100000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111110000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000111111111111111111111111111111111111111111111111111111111111111000000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000011111111111111111111111111111111111111111111111111111111111111100000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111110000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000111111111111111111111111111111111111111111111111111111111111111000000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000011111111111111111111111111111111111111111111111111111111111111100000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111110000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000111111111111111111111111111111111111111111111111111111111111111000000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000011111111111111111111111111111111111111111111111111111111111111100000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111110000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000000111111111111111111111111111111111111111111111111111111111111111000000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000000011111111111111111111111111111111111111111111111111111111111111100000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111110000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000000000111111111111111111111111111111111111111111111111111111111111111000000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000000000011111111111111111111111111111111111111111111111111111111111111100000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111110000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000000000000111111111111111111111111111111111111111111111111111111111111111000000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000000000000011111111111111111111111111111111111111111111111111111111111111100000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111110000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000000000000000111111111111111111111111111111111111111111111111111111111111111000))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000000000000000011111111111111111111111111111111111111111111111111111111111111100))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111110))
+    ((popcount 63)
+     (B0F
+      000000000000000000000000000000000000000000000000000000000111111111111111111111111111111111111111111111111111111111111111))
+    ((popcount 62)
+     (B0F
+      000000000000000000000000000000000000000000000000000000000011111111111111111111111111111111111111111111111111111111111111))
+    ((popcount 61)
+     (B0F
+      000000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111111))
+    ((popcount 60)
+     (B0F
+      000000000000000000000000000000000000000000000000000000000000111111111111111111111111111111111111111111111111111111111111))
+    ((popcount 59)
+     (B0F
+      000000000000000000000000000000000000000000000000000000000000011111111111111111111111111111111111111111111111111111111111))
+    ((popcount 58)
+     (B0F
+      000000000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111111111111111111111))
+    ((popcount 57)
+     (B0F
+      000000000000000000000000000000000000000000000000000000000000000111111111111111111111111111111111111111111111111111111111))
+    ((popcount 56)
+     (B0F
+      000000000000000000000000000000000000000000000000000000000000000011111111111111111111111111111111111111111111111111111111))
+    |}] *)

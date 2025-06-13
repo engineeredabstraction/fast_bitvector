@@ -74,8 +74,7 @@ module Relaxed : Set
 
 include Ops
 
-(* Bit 0 first *)
-module Big_endian : sig
+module Bit_zero_first : sig
   type nonrec t = t [@@deriving sexp]
 
   val to_string : t -> string
@@ -83,8 +82,7 @@ module Big_endian : sig
   val of_string : string -> t
 end
 
-(* Bit 0 last *)
-module Little_endian : sig
+module Bit_zero_last : sig
   type nonrec t = t [@@deriving sexp]
 
   val to_string : t -> string
@@ -189,3 +187,26 @@ val to_rev_offset_seq : t -> int Seq.t
 
 val of_offset_seq : int Seq.t -> t
 (** Convert an offset sequence into a bitvector. *)
+
+module Builder : sig
+  type vector := t
+  type t
+
+  val create : unit -> t
+  (** Create a new bitvector builder. *)
+
+  val push : t -> bool -> unit
+  (** Add a single bit to the bitvector (at the highest index). *)
+
+  val to_bitvector : t -> vector
+  (** Convert the builder to a bitvector. O(n). *)
+
+  val reset : t -> unit
+  (** Reset the builder, clearing all stored data *)
+
+  val of_iter : ((bool -> unit) -> unit) -> t
+  (** Construct builder from an iterator. *)
+
+  val of_seq : bool Seq.t -> t
+  (** Construct build from a sequence. *)
+end

@@ -15,6 +15,7 @@ module type Element = sig
   val bit_size : int
   val byte_size : int
   val shift : int
+  val index_mask : int
   val last_bit : t
   val equal : t -> t -> bool
   val to_int : t -> int
@@ -41,7 +42,8 @@ module Element_32 = struct
   let bit_size = 32
   let byte_size = 4
   let shift = 5
-  let last_bit = shift_left one (bit_size - 1)
+  let index_mask = 31
+  let last_bit = shift_left one index_mask
 
   external get : bytes -> int -> t = "%caml_bytes_get32u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set32u"
@@ -50,6 +52,7 @@ module Element_32 = struct
   let[@inline always] get b i = get b (i * byte_size)
   let count_set_bits = Popcount.count_set_bits_32
   let sexp_of_t x = Sexplib0.Sexp_conv.sexp_of_int32 x
+  let of_int i = logand (of_int i) max_int
 end
 
 module Element_64 = struct
@@ -58,7 +61,8 @@ module Element_64 = struct
   let bit_size = 64
   let byte_size = 8
   let shift = 6
-  let last_bit = shift_left one (bit_size - 1)
+  let index_mask = 63
+  let last_bit = shift_left one index_mask
 
   external get : bytes -> int -> t = "%caml_bytes_get64u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set64u"
@@ -67,6 +71,7 @@ module Element_64 = struct
   let[@inline always] get b i = get b (i * byte_size)
   let count_set_bits = Popcount.count_set_bits_64
   let sexp_of_t x = Sexplib0.Sexp_conv.sexp_of_int64 x
+  let of_int i = logand (of_int i) max_int
 end
 
 module type Foldable = sig
@@ -89,7 +94,8 @@ module type IterationS = sig
   val rev_iter_seti : t -> f:(int -> unit) -> unit
 end
 
-module Iteration (F : Foldable) : IterationS with type t := F.t = struct
+module [@inline always] Iteration (F : Foldable) :
+  IterationS with type t := F.t = struct
   include F
 
   let fold_left t ~init ~f = fold_lefti ~init ~f:(fun acc _i v -> f acc v) t
@@ -198,6 +204,7 @@ let clear_all result =
   done
 
 external ( &&& ) : bool -> bool -> bool = "%andint"
+external ( ||| ) : bool -> bool -> bool = "%orint"
 
 let[@inline always] foldi ~init ~f v =
   let length = length v in
@@ -364,31 +371,92 @@ module [@inline always] Ops (Check : Check) = struct
         let e_a = Element.get a i and e_b = Element.get b i in
         Element.equal (Element.logand e_a e_m) (Element.logand e_b e_m))
       modulo
+
+  module Set = struct
+    let mem = get
+    let intersect = and_
+    let complement = not
+    let symmetric_difference = xor
+
+    let difference ~result a b =
+      logop2 ~f:(fun a b -> Element.logand a (Element.lognot b)) a b result
+
+    let union = or_
+  end
+
+  module With_int = struct
+    let or_ ~result a ~bit0_at b_int =
+      Check.index a bit0_at;
+      let b_el = Element.of_int b_int in
+      let bit0_element_index = 1 + (bit0_at lsr Element.shift) in
+      let bitN_element_index =
+        1 + ((bit0_at + Sys.int_size - 1) lsr Element.shift)
+      in
+      let should_set_N =
+        (bitN_element_index - 1) * Element.bit_size < length a
+      in
+      let element0_shift_left = bit0_at land Element.index_mask in
+      let elementN_shift_right =
+        (* Only those bits that exceed Element.bit_size after shifting element0_shift_left
+           need to be set in elementN.
+           So we examine the highest bit in b_el (a position Sys.int_size - 1):
+        *)
+        let excess_bits = Element.bit_size - Sys.int_size in
+        let bits_in_elementN = element0_shift_left - excess_bits in
+        Sys.int_size - bits_in_elementN
+      in
+      let v = Element.get a bit0_element_index in
+      let v' = Element.logor v (Element.shift_left b_el element0_shift_left) in
+      Element.set result bit0_element_index v';
+      (if bit0_element_index <> bitN_element_index && should_set_N then
+         let v = Element.get a bitN_element_index in
+         let v' =
+           Element.logor v
+             (Element.shift_right_logical b_el elementN_shift_right)
+         in
+         Element.set result bitN_element_index v');
+      result
+  end
 end
 
-module Unsafe = Ops (struct
+module Check_none = struct
   let[@inline always] index _ _ = ()
   let[@inline always] length2 _ r = length r
   let[@inline always] length3 _ _ r = length r
-end)
+end
 
-include Ops (struct
-  let[@inline always] index t i = assert (0 <= i && i < length t)
+module Check_all = struct
+  let[@cold] raise_index_out_of_bounds ~i ~length =
+    failwithf "index %d out of bounds [0,%d)" i length
+
+  let[@inline always] index t i =
+    let length = length t in
+    if i >= length ||| (i < 0) then raise_index_out_of_bounds ~i ~length
+
+  let[@cold] raise_length_mismatch2 ~length1 ~length2 =
+    failwithf "length mismatch: %d <> %d" length1 length2
 
   let[@inline always] length2 a b =
     let la = length a in
     let lb = length b in
-    assert (la = lb);
+    if la <> lb then raise_length_mismatch2 ~length1:la ~length2:lb;
     la
+
+  let[@cold] raise_length_mismatch3 ~length1 ~length2 ~length3 =
+    failwithf "length mismatch: %d, %d, %d must be equal" length1 length2
+      length3
 
   let[@inline always] length3 a b c =
     let la = length a in
     let lb = length b in
     let lc = length c in
-    assert (la = lb);
-    assert (la = lc);
+    if la <> lb ||| (la <> lc) then
+      raise_length_mismatch3 ~length1:la ~length2:lb ~length3:lc;
     la
-end)
+end
+
+module Unsafe = Ops (Check_none)
+include Ops (Check_all)
 
 module Relaxed = struct
   let mem v i = if i < length v then get v i else false
@@ -507,7 +575,8 @@ include Iteration (struct
       let w = Element.get v wi in
       acc :=
         Element.fold_lefti ~init:!acc
-          ~f:(fun acc i b -> if i < length then f acc (bucket + i) b else acc)
+          ~f:(fun acc i b ->
+            if bucket + i < length then f acc (bucket + i) b else acc)
           w
     done;
     !acc
@@ -520,7 +589,8 @@ include Iteration (struct
       let w = Element.get v wi in
       acc :=
         Element.fold_righti ~init:!acc
-          ~f:(fun i b acc -> if i < length then f (bucket + i) b acc else acc)
+          ~f:(fun i b acc ->
+            if bucket + i < length then f (bucket + i) b acc else acc)
           w
     done;
     !acc
@@ -534,73 +604,63 @@ let mapi t ~f =
 
 open Sexplib0
 
-module Big_endian' = struct
+module type Bit_ordering_spec = sig
+  val sexp_name : string
+  val get_index : length:int -> i:int -> int
+end
+
+module Bit_ordering_conversion (Spec : Bit_ordering_spec) = struct
   type nonrec t = t
 
   let to_string t =
     let length = length t in
     (String.init [@inlined hint]) length (fun i ->
-        if Unsafe.get t i then '1' else '0')
+        if Unsafe.get t (Spec.get_index ~length ~i) then '1' else '0')
 
   let to_debug_string t =
     let length = capacity t in
     (String.init [@inlined hint]) length (fun i ->
-        if Unsafe.get t i then '1' else '0')
+        if Unsafe.get t (Spec.get_index ~length ~i) then '1' else '0')
 
   let of_string s =
     let length = String.length s in
     init length ~f:(fun i ->
-        match String.unsafe_get s i with
+        match String.unsafe_get s (Spec.get_index ~length ~i) with
         | '0' -> false
         | '1' -> true
         | other -> failwithf "invalid char '%c'" other)
 
-  let sexp_of_t t = Sexp.List [ Sexp.Atom "BE"; Sexp.Atom (to_string t) ]
+  let sexp_of_t t =
+    Sexp.List [ Sexp.Atom Spec.sexp_name; Sexp.Atom (to_string t) ]
 end
 
-module Little_endian' = struct
-  type nonrec t = t
+module Bit_zero_first' = Bit_ordering_conversion (struct
+  let sexp_name = "B0F"
+  let get_index ~length:_ ~i = i
+end)
 
-  let to_string t =
-    let length = length t in
-    (String.init [@inlined hint]) length (fun i ->
-        if Unsafe.get t (length - (i + 1)) then '1' else '0')
-
-  let to_debug_string t =
-    let length = capacity t in
-    (String.init [@inlined hint]) length (fun i ->
-        if Unsafe.get t (length - (i + 1)) then '1' else '0')
-
-  let of_string s =
-    let length = String.length s in
-    let result =
-      init length ~f:(fun i ->
-          match String.get s (length - (i + 1)) with
-          | '0' -> false
-          | '1' -> true
-          | other -> failwithf "invalid char '%c'" other)
-    in
-    result
-
-  let sexp_of_t t = Sexp.List [ Sexp.Atom "LE"; Sexp.Atom (to_string t) ]
-end
+module Bit_zero_last' = Bit_ordering_conversion (struct
+  let sexp_name = "B0L"
+  let get_index ~length ~i = length - (i + 1)
+end)
 
 let t_of_sexp = function
-  | Sexp.List [ Sexp.Atom "BE"; Sexp.Atom s ] -> Big_endian'.of_string s
-  | Sexp.List [ Sexp.Atom "LE"; Sexp.Atom s ] | Sexp.Atom s ->
-      Little_endian'.of_string s
+  | Sexp.List [ Sexp.Atom ("BE" | "B0F"); Sexp.Atom s ] ->
+      Bit_zero_first'.of_string s
+  | Sexp.List [ Sexp.Atom ("LE" | "B0L"); Sexp.Atom s ] | Sexp.Atom s ->
+      Bit_zero_last'.of_string s
   | other -> Sexp_conv.of_sexp_error "not a bitvector" other
 
-let sexp_of_t = Little_endian'.sexp_of_t
+let sexp_of_t = Bit_zero_last'.sexp_of_t
 
-module Big_endian = struct
-  include Big_endian'
+module Bit_zero_first = struct
+  include Bit_zero_first'
 
   let t_of_sexp = t_of_sexp
 end
 
-module Little_endian = struct
-  include Little_endian'
+module Bit_zero_last = struct
+  include Bit_zero_last'
 
   let t_of_sexp = t_of_sexp
 end
@@ -610,7 +670,7 @@ let of_bool_iter iter =
   iter (fun bit ->
       let i = length !result in
       let new_result = extend_inplace !result ~len:(i + 1) in
-      set_to new_result i bit;
+      Unsafe.set_to new_result i bit;
       result := new_result);
   !result
 
@@ -618,7 +678,7 @@ let of_offset_iter iter =
   let result = ref (create ~len:0) in
   iter (fun i ->
       let new_result = extend_inplace !result ~len:(i + 1) in
-      set new_result i;
+      Unsafe.set new_result i;
       result := new_result);
   !result
 
@@ -655,3 +715,69 @@ let to_rev_offset_seq v =
     else Seq.Nil
   in
   aux (length - 1)
+
+module Builder = struct
+  type t = {
+    mutable current : int;
+    mutable current_index : int;
+    mutable list_len : int;
+    mutable rev_list : int list;
+  }
+
+  let to_bitvector t =
+    assert (Sys.int_size <= Element.bit_size);
+    let len = (t.list_len * Sys.int_size) + t.current_index in
+    let bv = create ~len in
+    let list_len = t.list_len in
+    let rec aux bv rev_list ~i =
+      match rev_list with
+      | [] -> ()
+      | x :: xs ->
+          let current_element_bit0 = (list_len - i - 1) * Sys.int_size in
+          let _ =
+            Unsafe.With_int.or_ ~result:bv bv ~bit0_at:current_element_bit0 x
+          in
+          aux bv xs ~i:(i + 1)
+    in
+    aux bv t.rev_list ~i:0;
+    (if t.current_index > 0 then
+       let current_element_bit0 = t.list_len * Sys.int_size in
+       let _ =
+         Unsafe.With_int.or_ ~result:bv bv ~bit0_at:current_element_bit0
+           t.current
+       in
+       ());
+    bv
+
+  let create () =
+    { current = 0; current_index = 0; list_len = 0; rev_list = [] }
+
+  let reset t =
+    t.current <- 0;
+    t.current_index <- 0;
+    t.rev_list <- [];
+    t.list_len <- 0;
+    ()
+
+  let push t bit =
+    let bit = (Obj.magic : bool -> int) bit in
+    t.current <- t.current lor (bit lsl t.current_index);
+    t.current_index <- succ t.current_index;
+    if t.current_index = Sys.int_size then (
+      t.rev_list <- t.current :: t.rev_list;
+      t.current <- 0;
+      t.current_index <- 0;
+      t.list_len <- succ t.list_len)
+
+  let of_iter iter =
+    let builder = create () in
+    iter (fun bit -> push builder bit);
+    builder
+
+  let of_seq seq =
+    Seq.fold_left
+      (fun builder bit ->
+        push builder bit;
+        builder)
+      (create ()) seq
+end

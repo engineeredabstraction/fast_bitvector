@@ -7,6 +7,9 @@
     - `(rev_)iter`, `(rev_)iteri` and `(rev_)iter_seti`, `fold_left(i)` and `fold_right(i)`
     - Documentation to most of the public API
     - Relaxed set operations to be able to work with vectors of different length; missing bits default to zero
+    - Better error messages for safe functions
+    - New, more clear sexp representation
+    - Builder pattern for vector construction
 - Changed:
     - Interface style to be data-first
     - Embedded `Set` into the general API
@@ -20,6 +23,7 @@
     - use `Bytes.make` instead of `Bytes.init`
 - Fixed:
     - `popcount`, `is_full` and `is_empty`
+    - Fix big-endian architecture compatibility
 
 ## 0.0.5
 - 32-bit compatible

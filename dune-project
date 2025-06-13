@@ -16,12 +16,5 @@
   (name     fast_bitvector)
   (synopsis "A bitvector library")
   (description "Bitvector represented as bytes internally")
-  (depends
-    (ocaml (>= 5.1.0))
-    iter
-    ocaml_intrinsics_kernel
-    ppx_sexp_conv
-    ppx_sexp_value
-    (expect_test_helpers_core :with-test)
-    (ppx_jane :with-test))
+  ; depends are in separate file
   (tags (bitvector bitset)))
