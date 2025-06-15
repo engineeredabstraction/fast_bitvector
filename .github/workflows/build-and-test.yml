@@ -40,13 +40,20 @@ jobs:
       - name: Checkout tree
         uses: actions/checkout@v4
 
-      - name: Set-up OCaml
+      - name: Set-up OCaml (OX)
+        if: ${{ matrix.ocaml-compiler == 'ocaml-variants.5.2.0+ox' }}
         uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           opam-repositories: |
             default: "git+https://github.com/ocaml/opam-repository.git"
-            ${{ if matrix.ocaml-compiler == 'ocaml-variants.5.2.0+ox' }} ox: "git+https://github.com/oxcaml/opam-repository.git"
+            ox: "git+https://github.com/oxcaml/opam-repository.git"
+
+      - name: Set-up OCaml (non-ox)
+        if: ${{ matrix.ocaml-compiler != 'ocaml-variants.5.2.0+ox' }}
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
 
       - run: opam install . --deps-only --with-test
 
