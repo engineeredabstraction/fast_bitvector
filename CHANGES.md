@@ -1,6 +1,7 @@
 
 ## Development
 - More efficient create
+- Compatibility with multiple versions of ocaml_intrinsics_kernel
 
 ## 0.1.0.1
 - Simplify append, add test

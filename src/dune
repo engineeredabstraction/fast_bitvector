@@ -10,13 +10,8 @@
   )
 
 (rule
-  (enabled_if (< %{version:ocaml_intrinsics_kernel} v0.18))
-  (target popcount.intrinsic.ml)
+  (enabled_if %{lib-available:ocaml_intrinsics_kernel})
+  (target     popcount.intrinsic.ml)
   (action
-    (copy popcount.intrinsic.int.ml popcount.intrinsic.ml)))
-
-(rule
-  (enabled_if (not (< %{version:ocaml_intrinsics_kernel} v0.18)))
-  (target popcount.intrinsic.ml)
-  (action
-    (copy popcount.intrinsic.t.ml popcount.intrinsic.ml)))
+    (with-stdout-to popcount.intrinsic.ml
+     (run %{dep:select_version.sh} v0.18 %{dep:popcount.intrinsic.int.ml} %{dep:popcount.intrinsic.t.ml} %{version:ocaml_intrinsics_kernel}))))
