@@ -32,7 +32,7 @@ jobs:
           - 4
           - ocaml-variants.5.3.0+options,ocaml-option-flambda
           - ocaml-variants.4.14.2+options,ocaml-option-flambda
-          - 5.2.0+ox
+          - ocaml-variants.5.2.0+ox
 
     runs-on: ${{ matrix.os }}
 
@@ -46,7 +46,7 @@ jobs:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           opam-repositories: |
             default: "git+https://github.com/ocaml/opam-repository.git"
-            ox: "git+https://github.com/oxcaml/opam-repository.git"
+            ${{ if matrix.ocaml-compiler == 'ocaml-variants.5.2.0+ox' }} ox: "git+https://github.com/oxcaml/opam-repository.git"
 
       - run: opam install . --deps-only --with-test
 
