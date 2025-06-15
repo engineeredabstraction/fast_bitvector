@@ -8,3 +8,10 @@
             ))
   (preprocess (pps ppx_sexp_conv ppx_sexp_value ppx_cold))
   )
+
+(rule
+  (enabled_if %{lib-available:ocaml_intrinsics_kernel})
+  (target     popcount.intrinsic.ml)
+  (action
+    (with-stdout-to popcount.intrinsic.ml
+     (run %{dep:select_version.sh} v0.18 %{dep:popcount.intrinsic.int.ml} %{dep:popcount.intrinsic.t.ml} %{version:ocaml_intrinsics_kernel}))))
