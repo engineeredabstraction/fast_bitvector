@@ -1,16 +1,11 @@
 ## Development
 - Added new API:
     - `union` to complete set operations;
-    - `extend` allocates a bigger copy of a bitvector, `extend_inplace` - same, but may reuse the internal byte array;
+    - `extend` allocates a bigger copy of a bitvector
     - `mapi` as simple `map` requires external mutable state to do something more complex;
     - `to/of_seq` to connect to other containers;
     - `iter` and `iteri`, `foldi` implementations.
 - Added documentation to most of the public API.
-
-## Development
-- Better error messages for safe functions
-
-## Development
 - More efficient create
 - Compatibility with multiple versions of ocaml_intrinsics_kernel
 
