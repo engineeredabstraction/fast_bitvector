@@ -14,6 +14,7 @@ module type Element = sig
   val bit_size : int
   val byte_size : int
   val shift : int
+  val index_mask : int
 
   val equal : t -> t -> bool
 
@@ -45,6 +46,7 @@ module Element_32 = struct
   let bit_size = 32
   let byte_size = 4
   let shift = 5
+  let index_mask = 31
 
   external get : bytes -> int -> t = "%caml_bytes_get32u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set32u"
@@ -64,6 +66,7 @@ module Element_64 = struct
   let bit_size = 64
   let byte_size = 8
   let shift = 6
+  let index_mask = 63
 
   external get : bytes -> int -> t = "%caml_bytes_get64u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set64u"
@@ -177,6 +180,7 @@ module type Make_result = sig
 
   val wrap_1 : (t' -> t' -> unit) -> (t' -> _ t)
   val wrap_2 : (t' -> t' -> t' -> unit) -> (t' -> t' -> _ t)
+  val wrap_int : (t' -> bit0_at:int -> int -> t' -> unit) -> (t' -> bit0_at:int -> int -> _ t)
 end
 
 module Explicit_result = struct
@@ -191,6 +195,10 @@ module Explicit_result = struct
   let [@inline always] wrap_2 (f : t' -> t' -> t' -> unit) : (t' -> t' -> 'a t) =
     fun bv1 bv2 ~dst ->
       (f [@inlined hint]) bv1 bv2 dst
+
+  let [@inline always] wrap_int (f : t' -> bit0_at:int -> int -> t' -> unit) : (t' -> bit0_at:int -> int -> 'a t) =
+    fun bv ~bit0_at int ~dst ->
+      (f [@inlined hint]) bv ~bit0_at int dst
 end
 
 module _ : Make_result =
@@ -213,6 +221,11 @@ module Allocate_result = struct
       f bv1 bv2 res_bv;
       res_bv
 
+  let [@inline always] wrap_int (f : t' -> bit0_at:int -> int -> t' -> unit) : (t' -> bit0_at:int -> int -> 'a t) =
+    fun bv ~bit0_at int ->
+      let res_bv = create ~len:(length bv) in
+      f bv ~bit0_at int res_bv;
+      res_bv
 end
 
 module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
@@ -338,8 +351,44 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
       logop2 ~f:(fun a b ->
           Element.logand a (Element.lognot b)
         ) a b
+    
+    let union = or_
   end
 
+  module With_int = struct
+    let or_ =
+      let[@inline always] inner_f a ~bit0_at b_int result =
+        Check.index a bit0_at;
+        let b_el = Element.of_int b_int in
+        let bit0_element_index = 1 + (bit0_at lsr Element.shift) in
+        let bitN_element_index = 1 + ((bit0_at + Sys.int_size - 1) lsr Element.shift) in
+        let should_set_N = (bitN_element_index - 1) * Element.bit_size < length a in
+        let element0_shift_left = bit0_at land Element.index_mask in
+        let elementN_shift_right =
+          (* Only those bits that exceed Element.bit_size after shifting element0_shift_left
+             need to be set in elementN.
+             So we examine the highest bit in b_el (a position Sys.int_size - 1):
+          *)
+          let excess_bits = Element.bit_size - Sys.int_size in
+          let bits_in_elementN = element0_shift_left - excess_bits in
+          Sys.int_size - bits_in_elementN
+        in
+        let v = Element.get a bit0_element_index in
+        let v' =
+          Element.logor v (Element.shift_left b_el element0_shift_left)
+        in
+        Element.set result bit0_element_index v';
+        if bit0_element_index <> bitN_element_index && should_set_N
+        then begin
+          let v = Element.get a bitN_element_index in
+          let v' =
+            Element.logor v (Element.shift_right_logical b_el elementN_shift_right)
+          in
+          Element.set result bitN_element_index v'
+        end
+      in
+      Make_result.wrap_int inner_f
+  end
 end
 
 module Check_none = struct
@@ -401,37 +450,60 @@ let init new_length ~f =
 
 let create_full ~len:new_length = create_internal ~new_length ~init:'\xFF'
 
-let copy t =
-  Bytes.copy t
+let copy t = Bytes.copy t
+
+let [@inline always] append_internal
+    ~a ~length_a ~b ~length_b ~get_b_bit ~get_b_element:_ ~new_vector
+  =
+  let words_a = total_words ~length:length_a in
+  for i = 1 to words_a do
+    Element.set new_vector i (Element.get a i)
+  done;
+  for i = 0 to pred length_b do
+    let target = length_a + i in
+    let source_value = get_b_bit b i in
+    Unsafe.set_to new_vector target source_value
+  done;
+  new_vector
 
 let append a b =
   let length_a = length a in
   let length_b = length b in
   let length = length_a + length_b in
-  let words_a = total_words ~length:length_a in
-  let t = create ~len:length in
-  for i = 1 to words_a do
-    Element.set t i (Element.get a i)
-  done;
-  for i = 0 to pred length_b do
-    let target = length_a + i in
-    let source_value = Unsafe.get b i in
-    Unsafe.set_to t target source_value
-  done;
-  t
+  let new_vector = create ~len:length in
+  append_internal
+    ~a ~length_a
+    ~b ~length_b 
+    ~get_b_bit:Unsafe.get ~get_b_element:Element.get
+    ~new_vector
 
-let [@inline always] fold ~init ~f t =
+let extend ~by t =
+  let length_t = length t in
+  let len = length_t + by in
+  let new_vector = create ~len in
+  append_internal
+    ~a:t ~length_a:length_t
+    ~b:() ~length_b:by
+    ~new_vector
+    ~get_b_bit:(fun _ _ -> false)
+    ~get_b_element:(fun _ _ -> Element.zero)
+
+let[@inline always] foldi t ~init ~f =
   let length = length t in
   let acc = ref init in
   for i = 0 to pred length do
     (* CR smuenzel: process word at a time *)
-    acc := f !acc (Unsafe.get t i)
+    acc := f !acc i (Unsafe.get t i)
   done;
   !acc
 
+let fold t ~init ~f = foldi t ~init ~f:(fun acc _i b -> f acc b)
+
 let map t ~f =
-  (init [@inlined hint]) (length t)
-    ~f:(fun i -> f (Unsafe.get t i))
+  (init [@inlined hint]) (length t) ~f:(fun i -> f (Unsafe.get t i))
+
+let mapi t ~f =
+  (init [@inlined hint]) (length t) ~f:(fun i -> f i (Unsafe.get t i))
 
 open Sexplib0
 
@@ -508,3 +580,82 @@ module Bit_zero_last = struct
 
   let t_of_sexp = t_of_sexp
 end
+
+let iteri t ~f = foldi t ~init:() ~f:(fun _ i bit -> f i bit)
+
+let iter t ~f = iteri t ~f:(fun _i b -> f b)
+
+let to_seq v =
+  let rec aux v i () =
+    if length v > i then Seq.Cons (get v i, aux v (i + 1)) else Seq.Nil
+  in
+  aux v 0
+
+module Builder = struct
+  type t =
+    { mutable current : int
+    ; mutable current_index : int
+    ; mutable list_len : int
+    ; mutable rev_list : int list
+    }
+
+  let to_bitvector t =
+    assert (Sys.int_size <= Element.bit_size);
+    let len = t.list_len * Sys.int_size + t.current_index in
+    let bv = create ~len in
+    let list_len = t.list_len in
+    let rec aux bv rev_list ~i =
+      match rev_list with
+      | [] -> ()
+      | x :: xs ->
+        let current_element_bit0 = (list_len - i - 1) * Sys.int_size in
+        Unsafe.With_int.or_ ~dst:bv bv ~bit0_at:current_element_bit0 x;
+        aux bv xs ~i:(i + 1)
+    in
+    aux bv t.rev_list ~i:0;
+    if t.current_index > 0
+    then begin
+      let current_element_bit0 = t.list_len * Sys.int_size in
+      Unsafe.With_int.or_ ~dst:bv bv ~bit0_at:current_element_bit0 t.current
+    end;
+    bv
+
+  let create () =
+    { current = 0
+    ; current_index = 0
+    ; list_len = 0
+    ; rev_list = []
+    }
+
+  let reset t = 
+    t.current <- 0;
+    t.current_index <- 0;
+    t.rev_list <- [];
+    t.list_len <- 0;
+    ()
+
+  let push t bit =
+    let bit = (Obj.magic : bool -> int) bit in
+    t.current <- t.current lor (bit lsl t.current_index);
+    t.current_index <- succ t.current_index;
+    if t.current_index = Sys.int_size 
+    then begin
+      t.rev_list <- t.current :: t.rev_list;
+      t.current <- 0;
+      t.current_index <- 0;
+      t.list_len <- succ t.list_len
+    end
+
+end
+
+let of_iter iter =
+  let builder = Builder.create () in
+  iter (fun bit -> Builder.push builder bit);
+  Builder.to_bitvector builder
+
+let of_seq seq =
+  Seq.fold_left
+    (fun builder bit -> Builder.push builder bit; builder)
+    (Builder.create ())
+    seq
+  |> Builder.to_bitvector
