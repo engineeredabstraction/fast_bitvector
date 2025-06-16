@@ -13,29 +13,29 @@ val create : len:int -> t
 val create_full : len:int -> t
 (** Create a bitvector filled with ones of size [len]. *)
 
-type 'a with_result := result:t -> 'a
-
 module type Set := sig
+  type with_result
+
   val mem : t -> int -> bool
   (** [mem v i] checks whenever the bit with offset [i] is set to one. *)
 
-  val inter : (t -> t -> t) with_result
+  val inter : t -> t -> with_result
   (** [inter ~result x y] returns bitwise and of [x] and [y], on bits allocated
       in [result]. *)
 
-  val complement : (t -> t) with_result
+  val complement : t -> with_result
   (** [complement ~result x] returns bitwise negation of [x], on bits allocated
       in [result]. *)
 
-  val symmetric_diff : (t -> t -> t) with_result
+  val symmetric_diff : t -> t -> with_result
   (** [symmetric_diff ~result x y] returns bitwise xor of [x] and [y], on bits
       allocated in [result]. *)
 
-  val diff : (t -> t -> t) with_result
+  val diff : t -> t -> with_result
   (** [diff ~result x y] returns bitwise and of [x] and [y], on bits allocated
       in [result]. *)
 
-  val union : (t -> t -> t) with_result
+  val union : t -> t -> with_result
   (** [union ~result x y] returns bitwise or of [x] and [y], on bits allocated
       in [result]. *)
 
@@ -54,25 +54,34 @@ module type Set := sig
 end
 
 module type Ops := sig
+  type with_result
+
   val set : t -> int -> unit
   val clear : t -> int -> unit
   val set_to : t -> int -> bool -> unit
   val get : t -> int -> bool
-  val not : (t -> t) with_result
-  val and_ : (t -> t -> t) with_result
-  val or_ : (t -> t -> t) with_result
-  val xor : (t -> t -> t) with_result
+  val not : t -> with_result
+  val and_ : t -> t -> with_result
+  val or_ : t -> t -> with_result
+  val xor : t -> t -> with_result
 
-  include Set
+  include Set with type with_result := with_result
 end
 
-module Unsafe : Ops
+module Unsafe : Ops with type with_result := dst:t -> unit
 
-module Relaxed : Set
+module Relaxed : Set with type with_result := t
 (** Relaxed set operations: iteration is done on result vector, missing bits in
     operands are considered zero by default. *)
 
-include Ops
+include Ops with type with_result := dst:t -> unit
+(** [dst] specifies the destination bitvector of the operation, for inplace
+    operations, specify one of the operands as [dst] `*)
+
+module Allocate : sig
+  module Unsafe : Ops with type with_result := t
+  include Ops with type with_result := t
+end
 
 module Bit_zero_first : sig
   type nonrec t = t [@@deriving sexp]
