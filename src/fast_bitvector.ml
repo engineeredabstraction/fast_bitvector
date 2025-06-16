@@ -757,15 +757,17 @@ module Builder = struct
       t.current_index <- 0;
       t.list_len <- succ t.list_len)
 
-  let of_iter iter =
-    let builder = create () in
+  let add_iter builder iter =
     iter (fun bit -> push builder bit);
     builder
 
-  let of_seq seq =
+  let add_seq builder seq =
     Seq.fold_left
       (fun builder bit ->
         push builder bit;
         builder)
-      (create ()) seq
+      builder seq
+
+  let of_iter iter = add_iter (create ()) iter
+  let of_seq seq = add_seq (create ()) seq
 end

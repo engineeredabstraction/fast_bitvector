@@ -164,17 +164,11 @@ val rev_iter_seti : t -> f:(int -> unit) -> unit
 
 (** {1 Conversions} *)
 
-val of_bool_iter : ((bool -> unit) -> unit) -> t
-(** Convert a bool iterator into a bitvector. *)
-
 val to_bool_seq : t -> bool Seq.t
 (** Return a bool sequence over bits. *)
 
 val to_rev_bool_seq : t -> bool Seq.t
 (** Return a bool sequence over bits (in reverse). *)
-
-val of_bool_seq : bool Seq.t -> t
-(** Convert a bool sequence into a bitvector. *)
 
 val of_offset_iter : ((int -> unit) -> unit) -> t
 (** Convert an offset iterator into a bitvector. *)
@@ -203,6 +197,12 @@ module Builder : sig
 
   val reset : t -> unit
   (** Reset the builder, clearing all stored data *)
+
+  val add_iter : t -> ((bool -> unit) -> unit) -> t
+  (** Append an iterator to a builder. *)
+
+  val add_seq : t -> bool Seq.t -> t
+  (** Append a sequence to a builder. *)
 
   val of_iter : ((bool -> unit) -> unit) -> t
   (** Construct builder from an iterator. *)

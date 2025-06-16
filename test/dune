@@ -5,8 +5,3 @@
  (preprocess
   (pps ppx_jane))
  (inline_tests))
-
-(test
- (name bench)
- (modules bench)
- (libraries fast_bitvector benchmark))

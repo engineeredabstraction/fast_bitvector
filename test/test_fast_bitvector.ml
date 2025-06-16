@@ -190,7 +190,7 @@ let%expect_test "Extend" =
     ((a (B0L 0000001111111111))
      (b (B0L 0000001111111111)))
     |}];
-  let a = [true;false;true;true;false;false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
+  let a = [true;false;true;true;false;false;true] |> List.to_seq |> Fast_bitvector.Builder.of_seq |> Fast_bitvector.Builder.to_bitvector in
   let b = Fast_bitvector.extend a ~len:16 in
   let c = b |> Fast_bitvector.to_offset_seq |> Fast_bitvector.of_offset_seq in
   print_s [%message "" (a : Fast_bitvector.t) (c : Fast_bitvector.t)];
@@ -243,8 +243,8 @@ let%expect_test "Logical" =
       (c (B0L 0000000000111111111111111111110000000000)))
     |}];
   let empty = Fast_bitvector.create ~len:0 in
-  let b = [false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
-  let a = [true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
+  let b = [false;true] |> List.to_seq |> Fast_bitvector.Builder.of_seq |> Fast_bitvector.Builder.to_bitvector in
+  let a = [true] |> List.to_seq |> Fast_bitvector.Builder.of_seq |> Fast_bitvector.Builder.to_bitvector in
   let c = Fast_bitvector.Unsafe.inter ~result:(Fast_bitvector.create ~len:2) a b in
   print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal c empty : bool)];
   [%expect {|
@@ -253,7 +253,7 @@ let%expect_test "Logical" =
       (b (B0L 10))
       ("Fast_bitvector.Relaxed.equal c empty" true))
     |}];
-  let a = [false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
+  let a = [false;true] |> List.to_seq |> Fast_bitvector.Builder.of_seq |> Fast_bitvector.Builder.to_bitvector in
   let b = (Fast_bitvector.create ~len:2) in
   let b = Fast_bitvector.Unsafe.or_ ~result:b a b in
   print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.equal a b : bool)];
@@ -297,8 +297,8 @@ let%expect_test "Convertion roundtrips" =
   for i = 0 to 9 do 
     Fast_bitvector.set_to a i ((Int.rem i 2) = 0)
   done;
-  let b = a |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.of_bool_iter in
-  let c = a |> Fast_bitvector.to_bool_seq |> Fast_bitvector.of_bool_seq in
+  let b = a |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.Builder.of_iter |> Fast_bitvector.Builder.to_bitvector in
+  let c = a |> Fast_bitvector.to_bool_seq |> Fast_bitvector.Builder.of_seq |> Fast_bitvector.Builder.to_bitvector in
   let d = a |> Fast_bitvector.to_offset_seq |> Fast_bitvector.of_offset_seq in
   let e = a |> (fun t f -> Fast_bitvector.iter_seti ~f t) |> Fast_bitvector.of_offset_iter in
   print_s
@@ -313,9 +313,9 @@ let%expect_test "Convertion roundtrips" =
       (d (B0L 101010101))
       (e (B0L 101010101)))
     |}];
-  let b = a |> (fun t f -> Fast_bitvector.rev_iter ~f t) |> Fast_bitvector.of_bool_iter in
+  let b = a |> (fun t f -> Fast_bitvector.rev_iter ~f t) |> Fast_bitvector.Builder.of_iter |> Fast_bitvector.Builder.to_bitvector in
   let c = a |> (fun t f -> Fast_bitvector.rev_iter_seti ~f t) |> Fast_bitvector.of_offset_iter in
-  let d = a |> Fast_bitvector.to_rev_bool_seq |> Fast_bitvector.of_bool_seq in
+  let d = a |> Fast_bitvector.to_rev_bool_seq |> Fast_bitvector.Builder.of_seq |> Fast_bitvector.Builder.to_bitvector in
   let e = a |> Fast_bitvector.to_rev_offset_seq |> Fast_bitvector.of_offset_seq in
   print_s
     [%message
@@ -403,8 +403,8 @@ let%expect_test "Relaxed" =
       ("Fast_bitvector.Relaxed.equal a b" false))
     |}];
   let empty = Fast_bitvector.create ~len:0 in
-  let b = [false;true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
-  let a = [true] |> List.to_seq |> Fast_bitvector.of_bool_seq in
+  let b = [false;true] |> List.to_seq |> Fast_bitvector.Builder.of_seq |> Fast_bitvector.Builder.to_bitvector in
+  let a = [true] |> List.to_seq |> Fast_bitvector.Builder.of_seq |> Fast_bitvector.Builder.to_bitvector in
   let c = Fast_bitvector.Relaxed.inter ~result:(Fast_bitvector.create ~len:2) a b in
   print_s [%message "equal" (a : Fast_bitvector.t) (b : Fast_bitvector.t) (Fast_bitvector.Relaxed.equal c empty : bool)];
   [%expect {|
@@ -453,13 +453,13 @@ let%expect_test "Relaxed" =
 let%expect_test "Conversion roundtrips (long)" =
   let a, b, _ = init_mixed ~len:30 () in
   let a_iter =
-    a |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.of_bool_iter
+    a |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.Builder.of_iter |> Fast_bitvector.Builder.to_bitvector
   in
-  let a_seq = a |> Fast_bitvector.to_bool_seq |> Fast_bitvector.of_bool_seq in
+  let a_seq = a |> Fast_bitvector.to_bool_seq |> Fast_bitvector.Builder.of_seq |> Fast_bitvector.Builder.to_bitvector in
   let b_iter =
-    b |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.of_bool_iter
+    b |> (fun t f -> Fast_bitvector.iter ~f t) |> Fast_bitvector.Builder.of_iter |> Fast_bitvector.Builder.to_bitvector
   in
-  let b_seq = b |> Fast_bitvector.to_bool_seq |> Fast_bitvector.of_bool_seq in
+  let b_seq = b |> Fast_bitvector.to_bool_seq |> Fast_bitvector.Builder.of_seq |> Fast_bitvector.Builder.to_bitvector in
   print_s
     [%message
       "" (Fast_bitvector.equal a a_iter : bool) (Fast_bitvector.equal a a_seq : bool)

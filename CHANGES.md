@@ -3,13 +3,14 @@
     - `union`, `subset`, `disjoint` and `equal_modulo` to complete set operations
     - `extend` allocates a bigger copy of a bitvector, `extend_inplace` - same, but may reuse the internal byte array
     - `mapi` as simple `map` requires external mutable state to do anything interesting
-    - `to/of(_rev)_offset/bool_seq`, `of_offset/bool_iter` to connect to other containers using either `bool` or offset streams/iterators
+    - `to(_rev)_offset/bool_seq`, `to_offset/bool_iter` to process bitvectors as `bool` or offset streams and iterators
+    - `of_offset_iter/seq` to construct 
     - `(rev_)iter`, `(rev_)iteri` and `(rev_)iter_seti`, `fold_left(i)` and `fold_right(i)`
     - Documentation to most of the public API
     - Relaxed set operations to be able to work with vectors of different length; missing bits default to zero
     - Better error messages for safe functions
     - New, more clear sexp representation
-    - Builder pattern for vector construction
+    - Builder pattern for vector construction from bool sequences and iterators
 - Changed:
     - Interface style to be data-first
     - Embedded `Set` into the general API
