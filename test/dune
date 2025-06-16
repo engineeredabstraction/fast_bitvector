@@ -1,6 +1,12 @@
 (library
  (name test_fast_bitvector)
- (libraries fast_bitvector expect_test_helpers_core)
- (preprocess (pps ppx_jane))
- (inline_tests)
- )
+ (modules test_fast_bitvector)
+ (libraries fast_bitvector expect_test_helpers_core benchmark)
+ (preprocess
+  (pps ppx_jane))
+ (inline_tests))
+
+(test
+ (name bench)
+ (modules bench)
+ (libraries fast_bitvector benchmark))
