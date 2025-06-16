@@ -96,15 +96,17 @@ let max_length =
 let [@inline always] total_words ~length =
   (length + Element.bit_size - 1) lsr Element.shift
 
-let create ~len:new_length =
+let create_internal ~new_length ~init =
   if new_length > max_length
   then failwithf "length %d exceeds maximum length %d" new_length max_length;
   let total_data_words = (new_length + Element.bit_size - 1) / Element.bit_size in
   let total_words = total_data_words + 1 in
-  let t = Bytes.init (total_words * Element.byte_size) (fun _ -> '\x00') in
+  let t = Bytes.make (total_words * Element.byte_size) init in
   Element.set t 0 (Element.of_int new_length);
   assert (length t == new_length);
   t
+
+let create ~len:new_length = create_internal ~new_length ~init:'\000'
 
 let [@inline always] loop_set result value =
   let length = length result in
@@ -163,7 +165,7 @@ let is_full t =
     ~init:true
     ~f:(fun acc v -> acc &&& (Element.equal v Element.minus_one))
     ~final:(fun ~mask a -> Element.logor (Element.lognot mask) a)
-    
+
 module type Check = sig
   val index : t -> int -> unit
 
@@ -171,29 +173,89 @@ module type Check = sig
   val length3 : t -> t -> t -> int
 end
 
-module [@inline always] Ops(Check : Check) = struct
-  let [@inline always] logop1 ~f a result =
-    let length = Check.length2 a result in
-    let total_words = total_words ~length in
-    for i = 1 to total_words do
-      Element.set result i
-        (f
-           (Element.get a i)
-        )
-    done;
-    result
+module type Make_result = sig
+  type t' := t
 
-  let [@inline always] logop2 ~f a b result =
-    let length = Check.length3 a b result in
-    let total_words = total_words ~length in
-    for i = 1 to total_words do
-      Element.set result i
-        (f
-           (Element.get a i)
-           (Element.get b i)
-        )
-    done;
-    result
+  type _ t
+
+  val wrap_1 : (t' -> t' -> unit) -> (t' -> _ t)
+  val wrap_2 : (t' -> t' -> t' -> unit) -> (t' -> t' -> _ t)
+  val wrap_int : (t' -> bit0_at:int -> int -> t' -> unit) -> (t' -> bit0_at:int -> int -> _ t)
+end
+
+module Explicit_result = struct
+  type t' = t
+
+  type _ t = dst: t' -> unit
+
+  let [@inline always] wrap_1 (f : t' -> t' -> unit) : (t' -> 'a t) =
+    fun bv ~dst ->
+      (f [@inlined hint]) bv dst
+
+  let [@inline always] wrap_2 (f : t' -> t' -> t' -> unit) : (t' -> t' -> 'a t) =
+    fun bv1 bv2 ~dst ->
+      (f [@inlined hint]) bv1 bv2 dst
+
+  let [@inline always] wrap_int (f : t' -> bit0_at:int -> int -> t' -> unit) : (t' -> bit0_at:int -> int -> 'a t) =
+    fun bv ~bit0_at int ~dst ->
+      (f [@inlined hint]) bv ~bit0_at int dst
+end
+
+module _ : Make_result =
+  Explicit_result
+
+module Allocate_result = struct
+  type t' = t
+
+  type _ t = t'
+
+  let [@inline always] wrap_1 (f : t' -> t' -> unit) : (t' -> 'a t) =
+    fun bv ->
+      let res_bv = create ~len:(length bv) in
+      f bv res_bv;
+      res_bv
+
+  let [@inline always] wrap_2 (f : t' -> t' -> t' -> unit) : (t' -> t' -> 'a t) =
+    fun bv1 bv2 ->
+      let res_bv = create ~len:(length bv1) in
+      f bv1 bv2 res_bv;
+      res_bv
+
+  let [@inline always] wrap_int (f : t' -> bit0_at:int -> int -> t' -> unit) : (t' -> bit0_at:int -> int -> 'a t) =
+    fun bv ~bit0_at int ->
+      let res_bv = create ~len:(length bv) in
+      f bv ~bit0_at int res_bv;
+      res_bv
+end
+
+module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
+  let [@inline always] logop1 ~f =
+    let [@inline always] inner_f a result =
+      let length = Check.length2 a result in
+      let total_words = total_words ~length in
+      for i = 1 to total_words do
+        Element.set result i
+          (f
+             (Element.get a i)
+          )
+      done;
+    in
+    Make_result.wrap_1 inner_f
+
+
+  let [@inline always] logop2 ~f =
+    let [@inline always] inner_f a b result =
+      let length = Check.length3 a b result in
+      let total_words = total_words ~length in
+      for i = 1 to total_words do
+        Element.set result i
+          (f
+             (Element.get a i)
+             (Element.get b i)
+          )
+      done;
+    in
+    Make_result.wrap_2 inner_f
 
   let [@inline always] foldop2 ~init ~f ~final a b =
     let length = Check.length2 a b in
@@ -259,6 +321,8 @@ module [@inline always] Ops(Check : Check) = struct
     Element.set t index v'
 
   let equal a b =
+    (length a = length b)
+    &&
     foldop2 a b
       ~init:true
       ~f:(fun acc a b ->
@@ -268,17 +332,13 @@ module [@inline always] Ops(Check : Check) = struct
         )
       ~final:(fun ~mask a -> Element.logand mask a)
 
-  let not ~result a =
-    logop1 ~f:Element.lognot a result
+  let [@inline always] not a = logop1 ~f:Element.lognot a
 
-  let and_ ~result a b =
-    logop2 ~f:Element.logand a b result
+  let [@inline always] and_ a b = logop2 ~f:Element.logand a b
 
-  let or_ ~result a b =
-    logop2 ~f:Element.logor a b result
+  let [@inline always] or_ a b = logop2 ~f:Element.logor a b
 
-  let xor ~result a b =
-    logop2 ~f:Element.logxor a b result
+  let [@inline always] xor a b = logop2 ~f:Element.logxor a b
 
   module Set = struct
     let mem = get
@@ -287,45 +347,47 @@ module [@inline always] Ops(Check : Check) = struct
     let complement = not
     let symmetric_difference = xor
 
-    let difference ~result a b =
+    let [@inline always] difference a b =
       logop2 ~f:(fun a b ->
           Element.logand a (Element.lognot b)
-        ) a b result
+        ) a b
     
     let union = or_
   end
 
   module With_int = struct
-    let or_ ~result a ~bit0_at b_int =
-      Check.index a bit0_at;
-      let b_el = Element.of_int b_int in
-      let bit0_element_index = 1 + (bit0_at lsr Element.shift) in
-      let bitN_element_index = 1 + ((bit0_at + Sys.int_size - 1) lsr Element.shift) in
-      let should_set_N = (bitN_element_index - 1) * Element.bit_size < length a in
-      let element0_shift_left = bit0_at land Element.index_mask in
-      let elementN_shift_right =
-        (* Only those bits that exceed Element.bit_size after shifting element0_shift_left
-           need to be set in elementN.
-           So we examine the highest bit in b_el (a position Sys.int_size - 1):
-        *)
-        let excess_bits = Element.bit_size - Sys.int_size in
-        let bits_in_elementN = element0_shift_left - excess_bits in
-        Sys.int_size - bits_in_elementN
-      in
-      let v = Element.get a bit0_element_index in
-      let v' =
-        Element.logor v (Element.shift_left b_el element0_shift_left)
-      in
-      Element.set result bit0_element_index v';
-      if bit0_element_index <> bitN_element_index && should_set_N
-      then begin
-        let v = Element.get a bitN_element_index in
-        let v' =
-          Element.logor v (Element.shift_right_logical b_el elementN_shift_right)
+    let or_ =
+      let[@inline always] inner_f a ~bit0_at b_int result =
+        Check.index a bit0_at;
+        let b_el = Element.of_int b_int in
+        let bit0_element_index = 1 + (bit0_at lsr Element.shift) in
+        let bitN_element_index = 1 + ((bit0_at + Sys.int_size - 1) lsr Element.shift) in
+        let should_set_N = (bitN_element_index - 1) * Element.bit_size < length a in
+        let element0_shift_left = bit0_at land Element.index_mask in
+        let elementN_shift_right =
+          (* Only those bits that exceed Element.bit_size after shifting element0_shift_left
+             need to be set in elementN.
+             So we examine the highest bit in b_el (a position Sys.int_size - 1):
+          *)
+          let excess_bits = Element.bit_size - Sys.int_size in
+          let bits_in_elementN = element0_shift_left - excess_bits in
+          Sys.int_size - bits_in_elementN
         in
-        Element.set result bitN_element_index v'
-      end;
-      result
+        let v = Element.get a bit0_element_index in
+        let v' =
+          Element.logor v (Element.shift_left b_el element0_shift_left)
+        in
+        Element.set result bit0_element_index v';
+        if bit0_element_index <> bitN_element_index && should_set_N
+        then begin
+          let v = Element.get a bitN_element_index in
+          let v' =
+            Element.logor v (Element.shift_right_logical b_el elementN_shift_right)
+          in
+          Element.set result bitN_element_index v'
+        end
+      in
+      Make_result.wrap_int inner_f
   end
 end
 
@@ -364,9 +426,15 @@ module Check_all = struct
     la
 end
 
-module Unsafe = Ops(Check_none)
+module Unsafe = Ops(Check_none)(Explicit_result)
 
-include Ops(Check_all)
+include Ops(Check_all)(Explicit_result)
+
+module Allocate = struct
+  module Unsafe = Ops(Check_none)(Allocate_result)
+
+  include Ops(Check_all)(Allocate_result)
+end
 
 let equal a b =
   let la = length a in
@@ -380,31 +448,21 @@ let init new_length ~f =
   done;
   t
 
-let create_full ~len =
-  let t = create ~len in
-  Unsafe.not ~result:t t
+let create_full ~len:new_length = create_internal ~new_length ~init:'\xFF'
 
 let copy t = Bytes.copy t
 
 let [@inline always] append_internal
-    ~a ~length_a ~b ~length_b ~get_b_bit ~get_b_element ~new_vector
+    ~a ~length_a ~b ~length_b ~get_b_bit ~get_b_element:_ ~new_vector
   =
   let words_a = total_words ~length:length_a in
-  let words_b = total_words ~length:length_b in
   for i = 1 to words_a do
     Element.set new_vector i (Element.get a i)
   done;
-  let already_set = length_a mod Element.bit_size in
-  let to_set_in_first_element =
-    Int.min
-      length_b
-      (Element.bit_size - already_set)
-  in
-  for i = 0 to to_set_in_first_element - 1 do
-    Unsafe.set_to new_vector (length_a + i) (get_b_bit b i)
-  done;
-  for i = 1 to words_b do
-    Element.set new_vector (words_a + i) (get_b_element b i)
+  for i = 0 to pred length_b do
+    let target = length_a + i in
+    let source_value = get_b_bit b i in
+    Unsafe.set_to new_vector target source_value
   done;
   new_vector
 
@@ -551,15 +609,14 @@ module Builder = struct
       | [] -> ()
       | x :: xs ->
         let current_element_bit0 = (list_len - i - 1) * Sys.int_size in
-        let _ = Unsafe.With_int.or_ ~result:bv bv ~bit0_at:current_element_bit0 x in
+        Unsafe.With_int.or_ ~dst:bv bv ~bit0_at:current_element_bit0 x;
         aux bv xs ~i:(i + 1)
     in
     aux bv t.rev_list ~i:0;
     if t.current_index > 0
     then begin
       let current_element_bit0 = t.list_len * Sys.int_size in
-      let _ = Unsafe.With_int.or_ ~result:bv bv ~bit0_at:current_element_bit0 t.current in
-      ()
+      Unsafe.With_int.or_ ~dst:bv bv ~bit0_at:current_element_bit0 t.current
     end;
     bv
 

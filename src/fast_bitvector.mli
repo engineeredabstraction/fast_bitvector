@@ -1,6 +1,6 @@
 (* SPDX-License-Identifier: MPL-2.0
  * SPDX-FileCopyrightText: (c) 2025 Stefan Muenzel
- *)
+*)
 
 type t [@@deriving sexp]
 
@@ -14,52 +14,64 @@ val create_full : len:int -> t
 (** Create a bitvector filled with ones of size [len]. *)
 
 module type Ops := sig
-  type 'a with_result := result:t -> 'a
+    type with_result
 
-  val set : t -> int -> unit
-  val clear : t -> int -> unit
-  val set_to : t -> int -> bool -> unit
-  val get : t -> int -> bool
-  val equal : t -> t -> bool
-  val not : (t -> t) with_result
-  val and_ : (t -> t -> t) with_result
-  val or_ : (t -> t -> t) with_result
-  val xor : (t -> t -> t) with_result
+    val set : t -> int -> unit
+    val clear : t -> int -> unit
+    val set_to : t -> int -> bool -> unit
+    val get : t -> int -> bool
+    val equal : t -> t -> bool
+    val not : t -> with_result
+    val and_ : t -> t -> with_result
+    val or_ : t -> t -> with_result
+    val xor : t -> t -> with_result
 
-  module Set : sig
-    val mem : t -> int -> bool
-    (** [mem v i] checks whenever the bit with offset [i] is set to one. *)
+    module Set : sig
+      val mem : t -> int -> bool
+      (** [mem v i] checks whenever the bit with offset [i] is set to one. *)
 
-    val intersect : (t -> t -> t) with_result
-    (** [intersect ~result x y] returns bitwise and of [x] and [y], on bits
-        allocated in [result]. *)
+      val intersect : t -> t -> with_result
+      (** [intersect ~result x y] returns bitwise and of [x] and [y], on bits
+          allocated in [result]. *)
 
-    val complement : (t -> t) with_result
-    (** [complement ~result x] returns bitwise negation of [x], on bits
-        allocated in [result]. *)
+      val complement : t -> with_result
+      (** [complement ~result x] returns bitwise negation of [x], on bits
+          allocated in [result]. *)
 
-    val symmetric_difference : (t -> t -> t) with_result
-    (** [symmetric_difference ~result x y] returns bitwise xor of [x] and [y],
-        on bits allocated in [result]. *)
+      val symmetric_difference : t -> t -> with_result
+      (** [symmetric_difference ~result x y] returns bitwise xor of [x] and [y],
+          on bits allocated in [result]. *)
 
-    val difference : (t -> t -> t) with_result
-    (** [difference ~result x y] returns bitwise and of [x] and [y], on bits
-        allocated in [result]. *)
+      val difference : t -> t -> with_result
+      (** [difference ~result x y] returns bitwise and of [x] and [y], on bits
+          allocated in [result]. *)
 
-    val union : (t -> t -> t) with_result
-    (** [union ~result x y] returns bitwise or of [x] and [y], on bits allocated
-        in [result]. *)
+      val union : t -> t -> with_result
+      (** [union ~result x y] returns bitwise or of [x] and [y], on bits allocated
+          in [result]. *)
+    end
+
+    (* In [With_int], the least significant bit is take to be at the index [bit0_at]. *)
+    module With_int : sig
+      val or_ : t -> bit0_at:int -> int -> with_result
+      (** or with the int at [bit0_at] offset, excess bits in the int are ignored. *)
+    end
   end
-
-  (* In [With_int], the least significant bit is take to be at the index [bit0_at]. *)
-  module With_int : sig
-    val or_ : (t -> bit0_at:int -> int -> t) with_result
-    (** or with the int at [bit0_at] offset, excess bits in the int are ignored. *)
-  end
-end
 
 module Unsafe : Ops
+  with type with_result := dst:t -> unit
 include Ops
+  with type with_result := dst:t -> unit
+(** [dst] specifies the destination bitvector of the operation, for inplace operations,
+    specify one of the operands as [dst] `*)
+
+module Allocate : sig
+  module Unsafe : Ops
+    with type with_result := t
+
+  include Ops
+    with type with_result := t
+end
 
 module Bit_zero_first : sig
   type nonrec t = t [@@deriving sexp]
