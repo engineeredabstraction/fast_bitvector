@@ -372,18 +372,6 @@ module [@inline always] Ops (Check : Check) = struct
         Element.equal (Element.logand e_a e_m) (Element.logand e_b e_m))
       modulo
 
-  module Set = struct
-    let mem = get
-    let intersect = and_
-    let complement = not
-    let symmetric_difference = xor
-
-    let difference ~result a b =
-      logop2 ~f:(fun a b -> Element.logand a (Element.lognot b)) a b result
-
-    let union = or_
-  end
-
   module With_int = struct
     let or_ ~result a ~bit0_at b_int =
       Check.index a bit0_at;
