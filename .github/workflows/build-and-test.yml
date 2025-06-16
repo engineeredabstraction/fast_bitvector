@@ -40,6 +40,10 @@ jobs:
       - name: Checkout tree
         uses: actions/checkout@v4
 
+      - name: Install autoconf (macos)
+        if: ${{ contains(matrix.os, 'macos') }}
+        run: brew install autoconf
+
       - name: Set-up OCaml (ox)
         if: ${{ contains(matrix.ocaml-compiler, '+ox') }}
         uses: ocaml/setup-ocaml@v3
