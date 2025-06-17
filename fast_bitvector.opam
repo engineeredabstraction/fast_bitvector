@@ -33,4 +33,5 @@ depends: [
   "expect_test_helpers_core" {with-test}
   "ppx_jane" {with-test}
   "odoc" {with-doc}
+  "qcheck-core" {with-test}
 ]
