@@ -455,19 +455,6 @@ module Bitblit = struct
     let first_loop_length = Int.max 0 (first_loop_stop - first_loop_start) in
     let remaining_length = Int.max 0 (len - (first_loop_length + full_loop_bit_length)) in
     let last_loop_start = full_loop_bit_stop in
-    (*
-    let last_loop_stop = last_loop_start + remaining_length in
-    Printf.printf "%d => [%d, %d)->[%d,%d)=%d;  [%d,%d)->[%d, %d)=%d;  [%d,%d)->[%d, %d)=%d\n"
-      len
-      src_pos (src_pos + first_loop_length)
-      first_loop_start first_loop_stop first_loop_length
-      (src_pos + first_loop_length) (src_pos + first_loop_length + full_loop_bit_length)
-      full_loop_bit_start full_loop_bit_stop (full_loop_bit_stop - full_loop_bit_start)
-      (src_pos + first_loop_length + full_loop_bit_length)
-      (src_pos + first_loop_length + full_loop_bit_length + remaining_length)
-      last_loop_start last_loop_stop remaining_length
-    ;
-       *)
     if len <> first_loop_length + full_loop_bit_length + remaining_length
     then
       failwithf
