@@ -54,12 +54,16 @@ module Bit_zero_first : sig
   type nonrec t = t [@@deriving sexp]
   val to_string : t -> string
   val of_string : string -> t
+  val of_bool_list : bool list -> t
+  val to_bool_list : t -> bool list
 end
 
 module Bit_zero_last : sig
   type nonrec t = t [@@deriving sexp]
   val to_string : t -> string
   val of_string : string -> t
+  val of_bool_list : bool list -> t
+  val to_bool_list : t -> bool list
 end
 
 val length : t -> int
