@@ -77,3 +77,31 @@ val clear_all : t -> unit
 val is_empty : t -> bool
 val is_full : t -> bool
 
+module Builder : sig
+  type vector := t
+  type t
+
+  val create : unit -> t
+  (** Create a new bitvector builder. *)
+
+  val push : t -> bool -> unit
+  (** Add a single bit to the bitvector (at the highest index). *)
+
+  val to_bitvector : t -> vector
+  (** Convert the builder to a bitvector. O(n). *)
+
+  val reset : t -> unit
+  (** Reset the builder, clearing all stored data *)
+
+  val add_iter : t -> ((bool -> unit) -> unit) -> t
+  (** Append an iterator to a builder. *)
+
+  val add_seq : t -> bool Seq.t -> t
+  (** Append a sequence to a builder. *)
+
+  val of_iter : ((bool -> unit) -> unit) -> t
+  (** Construct builder from an iterator. *)
+
+  val of_seq : bool Seq.t -> t
+  (** Construct build from a sequence. *)
+end
