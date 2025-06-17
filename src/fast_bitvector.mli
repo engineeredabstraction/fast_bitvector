@@ -5,9 +5,13 @@
 type t [@@deriving sexp]
 
 val max_length : int
+(** Maximum length of any bitvector. Depends on host architecture. *)
 
 val create : len:int -> t
+(** Create a bitvector filled with zeroes of length [len]. *)
+
 val create_full : len:int -> t
+(** Create a bitvector filled with ones of size [len]. *)
 
 module type Ops := 
   sig
@@ -27,10 +31,20 @@ module type Ops :=
 
     module Set : sig
       val mem : t -> int -> bool
+      (** [mem v i] checks whenever the bit with offset [i] is set to one. *)
+
       val intersect : t -> t -> with_result
+      (** [intersect x y] returns the elements that are in both [x] and [y] *)
+
       val complement : t -> with_result
+      (** [complement x] returns bitwise negation of [x] *)
+
       val symmetric_difference : t -> t -> with_result
+      (** [symmetric_difference x y] returns the elements that are in [x] or
+          [y] but not both. *)
+
       val difference : t -> t -> with_result
+      (** [difference x y] returns the elements in [x] that are not in [y] *)
     end
   end
 
@@ -67,19 +81,34 @@ module Bit_zero_last : sig
 end
 
 val length : t -> int
+(** Returns length of the given bitvector. *)
 
 val copy : t -> t
+(** Creates a copy of bitvector [v]. *)
+
 val append : t -> t -> t
+(** Creates a fresh bitvector that is the concatenation of [v1] and [v2]. *)
+
 val fold : init:'a -> f:('a -> bool -> 'a) -> t -> 'a
+(** [fold ~init ~f t] folds [f] over [t] from left to right. *)
+
 val map : t -> f:(bool -> bool) -> t
+(** [map t ~f] applies [f] to each bit of [t]. *)
 
 val popcount : t -> int
+(** Return the count of bits set to one. *)
 
 val set_all : t -> unit
+(** Set all bits to one. *)
+
 val clear_all : t -> unit
+(** Set all bits to zero. *)
 
 val is_empty : t -> bool
+(** Return [true] whenever all bits are zero. *)
+
 val is_full : t -> bool
+(** Return [true] whenever all bits are one. *)
 
 module Builder : sig
   type vector := t
