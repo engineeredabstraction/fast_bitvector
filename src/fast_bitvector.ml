@@ -544,6 +544,20 @@ module Bit_ordering_conversion(Spec : Bit_ordering_spec) = struct
       [ Sexp.Atom Spec.sexp_name
       ; Sexp.Atom (to_string t)
       ]
+
+  let of_bool_list l =
+    let len = List.length l in
+    let t = create ~len in
+    ListLabels.iteri l ~f:(fun i b ->
+        Unsafe.set_to t (Spec.get_index ~length:len ~i) b
+      );
+    t
+
+  let to_bool_list t =
+    let len = length t in
+    List.init len (fun i ->
+        Unsafe.get t (Spec.get_index ~length:len ~i)
+      )
 end
 
 module Bit_zero_first' =
