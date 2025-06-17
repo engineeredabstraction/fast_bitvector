@@ -2,18 +2,18 @@ open Sexplib
 open Sexplib0.Sexp_conv
 
 let test_op1 ~op_bv ~op_bool bl =
-  let bv = Fast_bitvector.of_bool_list bl in
+  let bv = Fast_bitvector.Bit_zero_first.of_bool_list bl in
   let bl' = ListLabels.map bl ~f:op_bool in
   let bv' = op_bv bv in
-  let bl'_as_bv = Fast_bitvector.of_bool_list bl' in
+  let bl'_as_bv = Fast_bitvector.Bit_zero_first.of_bool_list bl' in
   Fast_bitvector.equal bv' bl'_as_bv
 
 let test_op2 ~op_bv ~op_bool (bl1, bl2) =
-  let bv1 = Fast_bitvector.of_bool_list bl1 in
-  let bv2 = Fast_bitvector.of_bool_list bl2 in
+  let bv1 = Fast_bitvector.Bit_zero_first.of_bool_list bl1 in
+  let bv2 = Fast_bitvector.Bit_zero_first.of_bool_list bl2 in
   let bl' = ListLabels.map2 bl1 bl2 ~f:op_bool in
   let bv' = op_bv bv1 bv2 in
-  let bl'_as_bv = Fast_bitvector.of_bool_list bl' in
+  let bl'_as_bv = Fast_bitvector.Bit_zero_first.of_bool_list bl' in
   Fast_bitvector.equal bv' bl'_as_bv
 
 let%test_unit "not" =
