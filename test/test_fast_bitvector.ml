@@ -728,3 +728,31 @@ let%expect_test "Logical(big)" =
         B0L
         00000000000000000000111111111111111111111111111111111111111100000000000000000000)))
     |}]
+
+let%expect_test "Not" =
+  let len = 64 + 20 in
+  let a = Fast_bitvector.create_full ~len in
+  let b = Fast_bitvector.create ~len in
+  let an = Fast_bitvector.create ~len in
+  let _ = Fast_bitvector.Unsafe.not a ~dst:an in
+  print_s
+    [%message
+      "not"
+        (a : Fast_bitvector.t)
+        (b : Fast_bitvector.t)
+        (an : Fast_bitvector.t)
+        (Fast_bitvector.equal an b : bool)];
+  [%expect
+    {|
+    (not
+      (a (
+        B0L
+        111111111111111111111111111111111111111111111111111111111111111111111111111111111111))
+      (b (
+        B0L
+        000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
+      (an (
+        B0L
+        000000000000000000000000000000000000000000000000000000000000000000000000000000000000))
+      ("Fast_bitvector.equal an b" false))
+    |}]
