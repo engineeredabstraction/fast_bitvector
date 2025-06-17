@@ -19,16 +19,18 @@ let test_op2 ~op_bv ~op_bool (bl1, bl2) =
   let eq_list = [%equal: bool list] bl' (Fast_bitvector.Bit_zero_first.to_bool_list bv') in
   eq_bv && eq_list
 
-let%test_unit "not" =
-  QCheck.Test.make ~count:1000 ~name:"not" 
-    QCheck.(list bool)
-    (test_op1 ~op_bv:Fast_bitvector.Allocate.not ~op_bool:Stdlib.Bool.not)
+let list_len = QCheck.Gen.int_range 0 (64*3 + 20)
+
+let test_unary ~name ~op_bv ~op_bool =
+  QCheck.Test.make ~count:1000 ~name
+    QCheck.(list_of_size list_len bool)
+    (test_op1 ~op_bv ~op_bool)
   |> QCheck.Test.check_exn
 
 let test_binary ~name ~op_bv ~op_bool =
   let g = 
     let open QCheck.Gen in
-    let* len = nat in
+    let* len = list_len in
     let* l1 = list_size (return len) bool in
     let+ l2 = list_size (return len) bool in
     (l1, l2)
@@ -43,6 +45,9 @@ let test_binary ~name ~op_bv ~op_bool =
     (test_op2 ~op_bv ~op_bool)
   |> QCheck.Test.check_exn
 
+let%test_unit "not" =
+  test_unary ~name:"not" ~op_bv:Fast_bitvector.Allocate.not ~op_bool:not
+
 let%test_unit "and" =
   test_binary ~name:"and" ~op_bv:Fast_bitvector.Allocate.and_ ~op_bool:(&&)
 
@@ -51,4 +56,12 @@ let%test_unit "or" =
 
 let%test_unit "xor" =
   test_binary ~name:"xor" ~op_bv:Fast_bitvector.Allocate.xor ~op_bool:Bool.(<>)
+
+let%test_unit "sexp round-trip (B0F)" =
+  test_unary ~name:"sexp round-trip (B0F)" ~op_bv:(fun bv ->
+      Fast_bitvector.Bit_zero_first.(t_of_sexp (sexp_of_t bv))) ~op_bool:Fn.id
+
+let%test_unit "sexp round-trip (B0L)" =
+  test_unary ~name:"sexp round-trip (B0L)" ~op_bv:(fun bv ->
+      Fast_bitvector.Bit_zero_last.(t_of_sexp (sexp_of_t bv))) ~op_bool:Fn.id
 
