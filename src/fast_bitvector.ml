@@ -401,6 +401,14 @@ let init new_length ~f =
 
 let create_full ~len:new_length = create_internal ~new_length ~init:'\xFF'
 
+let of_bool_list l =
+  let len = List.length l in
+  let t = create ~len in
+  ListLabels.iteri l ~f:(fun i b ->
+      Unsafe.set_to t i b
+    );
+  t
+
 let copy t =
   Bytes.copy t
 

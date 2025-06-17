@@ -8,6 +8,7 @@ val max_length : int
 
 val create : len:int -> t
 val create_full : len:int -> t
+val of_bool_list : bool list -> t
 
 module type Ops := 
   sig
