@@ -40,18 +40,18 @@ module type Ops :=
       val mem : t -> int -> bool
       (** [mem v i] checks whenever the bit with offset [i] is set to one. *)
 
-      val intersect : t -> t -> with_result
-      (** [intersect x y] returns the elements that are in both [x] and [y] *)
+      val inter : t -> t -> with_result
+      (** [inter x y] returns the elements that are in both [x] and [y] *)
 
       val complement : t -> with_result
       (** [complement x] returns bitwise negation of [x] *)
 
-      val symmetric_difference : t -> t -> with_result
-      (** [symmetric_difference x y] returns the elements that are in [x] or
+      val symmetric_diff : t -> t -> with_result
+      (** [symmetric_diff x y] returns the elements that are in [x] or
           [y] but not both. *)
 
-      val difference : t -> t -> with_result
-      (** [difference x y] returns the elements in [x] that are not in [y] *)
+      val diff : t -> t -> with_result
+      (** [diff x y] returns the elements in [x] that are not in [y] *)
 
       val union : t -> t -> with_result
       (** [union x y] returns the elements that are in [x] or [y] *)

@@ -385,13 +385,13 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
   module Set = struct
     let mem = get
 
-    let intersect = and_
+    let inter = and_
     let complement = not
-    let symmetric_difference = xor
+    let symmetric_diff = xor
     let union = or_
     let cardinality = popcount
 
-    let [@inline always] difference a b =
+    let [@inline always] diff a b =
       logop2 ~f:(fun a b ->
           Element.logand a (Element.lognot b)
         ) a b
