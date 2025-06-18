@@ -374,6 +374,7 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
     let complement = not
     let symmetric_difference = xor
     let union = or_
+    let cardinality = popcount
 
     let [@inline always] difference a b =
       logop2 ~f:(fun a b ->

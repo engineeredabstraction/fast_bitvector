@@ -59,6 +59,9 @@ module type Ops :=
       val is_subset : of_:t -> t -> bool
       (** [subset s1 ~of_] tests whether the bitvector [s1] is a subset of the
           bitvector [of_]. *)
+
+      val cardinality : t -> int
+      (** The number of elements in the set *)
     end
   end
 
