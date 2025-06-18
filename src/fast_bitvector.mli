@@ -23,6 +23,10 @@ module type Ops :=
     val get : t -> int -> bool
 
     val equal : t -> t -> bool
+    (** Compare two bitvectors for equality. *)
+
+    val equal_modulo : modulo:t -> t -> t -> bool
+    (** Test whether two bitvectors are equal in the positions set in [modulo] *)
 
     val not : t -> with_result
     val and_ : t -> t -> with_result
@@ -45,6 +49,16 @@ module type Ops :=
 
       val difference : t -> t -> with_result
       (** [difference x y] returns the elements in [x] that are not in [y] *)
+
+      val union : t -> t -> with_result
+      (** [union x y] returns the elements that are in [x] or [y] *)
+
+      val is_disjoint : t -> t -> bool
+      (** Test if two sets are disjoint.*)
+
+      val is_subset : of_:t -> t -> bool
+      (** [subset s1 ~of_] tests whether the bitvector [s1] is a subset of the
+          bitvector [of_]. *)
     end
   end
 
