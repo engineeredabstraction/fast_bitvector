@@ -4,6 +4,7 @@
 - Compatibility with multiple versions of ocaml_intrinsics_kernel
 - Added:
     - `union`, `subset`, `disjoint` and `equal_modulo` to complete set operations
+    - `xnor`, `nor`, `nand`
     - QCheck tests
     - Builder to construct bitvectors more efficiently
     - Documentation to most of the public API

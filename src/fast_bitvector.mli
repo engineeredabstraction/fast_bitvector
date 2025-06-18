@@ -30,8 +30,11 @@ module type Ops :=
 
     val not : t -> with_result
     val and_ : t -> t -> with_result
+    val nand : t -> t -> with_result
     val or_ : t -> t -> with_result
+    val nor : t -> t -> with_result
     val xor : t -> t -> with_result
+    val xnor : t -> t -> with_result
 
     module Set : sig
       val mem : t -> int -> bool

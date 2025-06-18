@@ -363,9 +363,24 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
 
   let [@inline always] and_ a b = logop2 ~f:Element.logand a b
 
+  let [@inline always] nand a b =
+    logop2 ~f:(fun a b ->
+        Element.lognot (Element.logand a b)
+      ) a b
+
   let [@inline always] or_ a b = logop2 ~f:Element.logor a b
 
+  let [@inline always] nor a b =
+    logop2 ~f:(fun a b ->
+        Element.lognot (Element.logor a b)
+      ) a b
+
   let [@inline always] xor a b = logop2 ~f:Element.logxor a b
+
+  let [@inline always] xnor a b =
+    logop2 ~f:(fun a b ->
+        Element.lognot (Element.logxor a b)
+      ) a b
 
   module Set = struct
     let mem = get
