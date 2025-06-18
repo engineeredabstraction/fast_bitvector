@@ -56,7 +56,7 @@ module type Ops :=
       val union : t -> t -> with_result
       (** [union x y] returns the elements that are in [x] or [y] *)
 
-      val is_disjoint : t -> t -> bool
+      val are_disjoint : t -> t -> bool
       (** Test if two sets are disjoint.*)
 
       val is_subset : of_:t -> t -> bool

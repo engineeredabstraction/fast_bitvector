@@ -396,7 +396,7 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
           Element.logand a (Element.lognot b)
         ) a b
 
-    let is_disjoint a b =
+    let are_disjoint a b =
       foldop2 a b
         ~init:true
         ~f:(fun acc a b ->
