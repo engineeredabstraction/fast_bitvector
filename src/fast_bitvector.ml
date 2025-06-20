@@ -565,6 +565,8 @@ module type Bit_ordering_spec = sig
 end
 
 module Bit_ordering_conversion(Spec : Bit_ordering_spec) = struct
+  module Spec = Spec
+
   type nonrec t = t
 
   let to_string t =
@@ -647,7 +649,42 @@ module Bit_zero_last = struct
   let t_of_sexp = t_of_sexp
 end
 
-module Basic_fold(Spec : Bit_ordering_spec) = struct
+module type Fold_ordering_spec = sig
+  val get_index : length:int -> i:int -> int
+  
+  type 'a fold_f
+  type 'a foldi_f
+
+  val apply_fold_f : 'a fold_f -> bool -> 'a -> 'a
+  val apply_foldi_f : 'a foldi_f -> int -> bool -> 'a -> 'a
+
+end
+
+module Fold_ordering = struct
+  (* For fold_left *)
+  module Bit_zero_first = struct
+    include Bit_zero_first'.Spec
+
+    type 'a fold_f = 'a -> bool -> 'a
+    type 'a foldi_f = 'a -> int -> bool -> 'a
+
+    let [@inline always] apply_fold_f f b acc = f acc b
+    let [@inline always] apply_foldi_f f i b acc = f acc i b
+  end
+
+  (* For fold_right *)
+  module Bit_zero_last = struct
+    include Bit_zero_last'.Spec
+
+    type 'a fold_f = bool -> 'a -> 'a
+    type 'a foldi_f = int -> bool -> 'a -> 'a
+
+    let [@inline always] apply_fold_f f b acc = f b acc
+    let [@inline always] apply_foldi_f f i b acc = f i b acc
+  end
+end
+
+module [@inline always] Basic_fold(Spec : Fold_ordering_spec) = struct
   let [@inline always] foldi t ~init ~f =
     let length = length t in
     let acc = ref init in
@@ -658,6 +695,12 @@ module Basic_fold(Spec : Bit_ordering_spec) = struct
 
   let [@inline always] fold t ~init ~f =
     foldi t ~init ~f:(fun acc _i b -> f acc b)
+
+  let [@inline always] foldi t ~init ~f =
+    foldi t ~init ~f:(fun acc i b -> Spec.apply_foldi_f f i b acc)
+
+  let [@inline always] fold t ~init ~f =
+    fold t ~init ~f:(fun acc b -> Spec.apply_fold_f f b acc)
 
   let [@inline always] iteri t ~f =
     let length = length t in
@@ -689,18 +732,30 @@ module Basic_fold(Spec : Bit_ordering_spec) = struct
     fold_set t ~init:() ~f:(fun () i -> f i)
 end
 
-let [@inline always] fold ~init ~f t =
-  let length = length t in
-  let acc = ref init in
-  for i = 0 to pred length do
-    (* CR smuenzel: process word at a time *)
-    acc := f !acc (Unsafe.get t i)
-  done;
-  !acc
+module Fold_forward = Basic_fold(Fold_ordering.Bit_zero_first)
+module Fold_backward = Basic_fold(Fold_ordering.Bit_zero_last)
+
+let fold = Fold_forward.fold
+let fold_left = Fold_forward.fold
+let foldi = Fold_forward.foldi
+let fold_lefti = Fold_forward.foldi
+let iter = Fold_forward.iter
+let iteri = Fold_forward.iteri
+let iter_set = Fold_forward.iter_set
+
+let fold_right = Fold_backward.fold
+let fold_righti = Fold_backward.foldi
+let rev_iter = Fold_backward.iter
+let rev_iteri = Fold_backward.iteri
+let rev_iter_set = Fold_backward.iter_set
 
 let map t ~f =
   (init [@inlined hint]) (length t)
     ~f:(fun i -> f (Unsafe.get t i))
+
+let mapi t ~f =
+  (init [@inlined hint]) (length t)
+    ~f:(fun i -> f i (Unsafe.get t i))
 
 
 module Builder = struct

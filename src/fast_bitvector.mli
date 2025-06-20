@@ -88,10 +88,6 @@ val copy : t -> t
 
 val append : t -> t -> t
 (** Creates a fresh bitvector that is the concatenation of [v1] and [v2]. *)
-
-val fold : init:'a -> f:('a -> bool -> 'a) -> t -> 'a
-(** [fold ~init ~f t] folds [f] over [t] from left to right. *)
-
 val popcount : t -> int
 (** Return the count of bits set to one. *)
 
@@ -113,8 +109,14 @@ val fold_left : t -> init:'a -> f:('a -> bool -> 'a) -> 'a
 (** [fold ~init ~f b0...bn] is [f (f (f init b0)...) bn], where [b0...bn] are
     individual bits in a bitvector. *)
 
+val fold : t -> init:'a -> f:('a -> bool -> 'a) -> 'a
+(** Alias for [fold_left] *)
+
 val fold_lefti : t -> init:'a -> f:('a -> int -> bool -> 'a) -> 'a
-(** [foldi] is [fold] with offset provided. *)
+(** [fold_lefti] is [fold_left] with offset provided. *)
+
+val foldi : t -> init:'a -> f:('a -> int -> bool -> 'a) -> 'a
+(** Alias for [fold_lefti] *)
 
 val fold_right : t -> init:'a -> f:(bool -> 'a -> 'a) -> 'a
 (** [fold ~init ~f b0...bn] is [f (f (f init b0)...) bn], where [b0...bn] are
@@ -136,7 +138,7 @@ val iter : t -> f:(bool -> unit) -> unit
 val iteri : t -> f:(int -> bool -> unit) -> unit
 (** Iterate over all bits and their offsets. *)
 
-val iter_seti : t -> f:(int -> unit) -> unit
+val iter_set : t -> f:(int -> unit) -> unit
 (** Iterate over all offsets of set bits. *)
 
 val rev_iteri : t -> f:(int -> bool -> unit) -> unit
@@ -145,7 +147,7 @@ val rev_iteri : t -> f:(int -> bool -> unit) -> unit
 val rev_iter : t -> f:(bool -> unit) -> unit
 (** Iterate over all bits in reverse order. *)
 
-val rev_iter_seti : t -> f:(int -> unit) -> unit
+val rev_iter_set : t -> f:(int -> unit) -> unit
 (** Iterate over all offsets of set bits in reverse order. *)
 
 module Builder : sig
