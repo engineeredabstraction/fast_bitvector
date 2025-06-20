@@ -92,9 +92,6 @@ val append : t -> t -> t
 val fold : init:'a -> f:('a -> bool -> 'a) -> t -> 'a
 (** [fold ~init ~f t] folds [f] over [t] from left to right. *)
 
-val map : t -> f:(bool -> bool) -> t
-(** [map t ~f] applies [f] to each bit of [t]. *)
-
 val popcount : t -> int
 (** Return the count of bits set to one. *)
 
