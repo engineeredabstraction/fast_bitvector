@@ -38,6 +38,7 @@ module type Element = sig
   val lognot : t -> t
 
   val count_set_bits : t -> int
+  val count_trailing_zeros : t -> int
 end
 
 module Element_32 = struct
@@ -54,7 +55,7 @@ module Element_32 = struct
   let set b i v = set b (i*byte_size) v
   let get b i = get b (i*byte_size)
 
-  let count_set_bits = Popcount.count_set_bits_32
+  let count_set_bits = Bitops.count_set_bits_32
 
   let of_int i =
     logand (of_int i) max_int
@@ -74,7 +75,7 @@ module Element_64 = struct
   let set b i v = set b (i*byte_size) v
   let get b i = get b (i*byte_size)
 
-  let count_set_bits = Popcount.count_set_bits_64
+  let count_set_bits = Bitops.count_set_bits_64
 
   let of_int i =
     logand (of_int i) max_int
@@ -233,12 +234,20 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
     let [@inline always] inner_f a result =
       let length = Check.length2 a result in
       let total_words = total_words ~length in
-      for i = 1 to total_words do
+      for i = 1 to pred total_words do
         Element.set result i
           (f
              (Element.get a i)
           )
       done;
+      let mask =
+        Element.shift_right_logical Element.minus_one (length land Element.index_mask)
+      in
+      Element.set result total_words
+        (Element.logand
+           mask
+           (f (Element.get a total_words))
+        )
     in
     Make_result.wrap_1 inner_f
 
@@ -528,19 +537,6 @@ let append a b =
   Bitblit.bitblit ~src:b ~dst:t ~src_pos:0 ~dst_pos:length_a ~len:length_b;
   t 
 
-let [@inline always] fold ~init ~f t =
-  let length = length t in
-  let acc = ref init in
-  for i = 0 to pred length do
-    (* CR smuenzel: process word at a time *)
-    acc := f !acc (Unsafe.get t i)
-  done;
-  !acc
-
-let map t ~f =
-  (init [@inlined hint]) (length t)
-    ~f:(fun i -> f (Unsafe.get t i))
-
 open Sexplib0
 
 module type Bit_ordering_spec = sig
@@ -630,6 +626,62 @@ module Bit_zero_last = struct
 
   let t_of_sexp = t_of_sexp
 end
+
+module Basic_fold(Spec : Bit_ordering_spec) = struct
+  let [@inline always] foldi t ~init ~f =
+    let length = length t in
+    let acc = ref init in
+    for i = 0 to pred length do
+      acc := f !acc i (Unsafe.get t (Spec.get_index ~length ~i))
+    done;
+    !acc
+
+  let [@inline always] fold t ~init ~f =
+    foldi t ~init ~f:(fun acc _i b -> f acc b)
+
+  let [@inline always] iteri t ~f =
+    let length = length t in
+    for i = 0 to pred length do
+      f i (Unsafe.get t (Spec.get_index ~length ~i))
+    done
+
+  let [@inline always] iter t ~f =
+    iteri t ~f:(fun _i b -> f b)
+
+  (* Only consider set bits *)
+  let [@inline always] fold_set t ~init ~f =
+    let length = length t in
+    let total_words = total_words ~length in
+    let acc = ref init in
+    for i = 1 to total_words do
+      let word = ref (Element.get t i) in
+      let subindex = ref 0 in
+      while not (Element.equal !word Element.zero) do
+        let tail = Element.count_trailing_zeros !word in
+        let subindex = !subindex + tail in
+        word := Element.shift_right_logical !word (tail + 1);
+        acc := f !acc ((i - 1) * Element.bit_size + subindex)
+      done
+    done;
+    !acc
+
+  let [@inline always] iter_set t ~f =
+    fold_set t ~init:() ~f:(fun () i -> f i)
+end
+
+let [@inline always] fold ~init ~f t =
+  let length = length t in
+  let acc = ref init in
+  for i = 0 to pred length do
+    (* CR smuenzel: process word at a time *)
+    acc := f !acc (Unsafe.get t i)
+  done;
+  !acc
+
+let map t ~f =
+  (init [@inlined hint]) (length t)
+    ~f:(fun i -> f (Unsafe.get t i))
+
 
 module Builder = struct
   type t =

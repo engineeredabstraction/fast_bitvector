@@ -110,6 +110,47 @@ val is_empty : t -> bool
 val is_full : t -> bool
 (** Return [true] whenever all bits are one. *)
 
+(** {1 Iterators} *)
+
+val fold_left : t -> init:'a -> f:('a -> bool -> 'a) -> 'a
+(** [fold ~init ~f b0...bn] is [f (f (f init b0)...) bn], where [b0...bn] are
+    individual bits in a bitvector. *)
+
+val fold_lefti : t -> init:'a -> f:('a -> int -> bool -> 'a) -> 'a
+(** [foldi] is [fold] with offset provided. *)
+
+val fold_right : t -> init:'a -> f:(bool -> 'a -> 'a) -> 'a
+(** [fold ~init ~f b0...bn] is [f (f (f init b0)...) bn], where [b0...bn] are
+    individual bits in a bitvector. *)
+
+val fold_righti : t -> init:'a -> f:(int -> bool -> 'a -> 'a) -> 'a
+(** [foldi] is [fold] with offset provided. *)
+
+val map : t -> f:(bool -> bool) -> t
+(** Map every bit in the vector with function [f]. *)
+
+val mapi : t -> f:(int -> bool -> bool) -> t
+(** [mapi ~f b0...bn] is [f 0 b0 ... f n bn], where [bi] is [i]-th bit in a
+    bitvector.*)
+
+val iter : t -> f:(bool -> unit) -> unit
+(** Iterate over all bits. *)
+
+val iteri : t -> f:(int -> bool -> unit) -> unit
+(** Iterate over all bits and their offsets. *)
+
+val iter_seti : t -> f:(int -> unit) -> unit
+(** Iterate over all offsets of set bits. *)
+
+val rev_iteri : t -> f:(int -> bool -> unit) -> unit
+(** Iterate over all bits and their offsets in reverse order. *)
+
+val rev_iter : t -> f:(bool -> unit) -> unit
+(** Iterate over all bits in reverse order. *)
+
+val rev_iter_seti : t -> f:(int -> unit) -> unit
+(** Iterate over all offsets of set bits in reverse order. *)
+
 module Builder : sig
   type vector := t
   type t
