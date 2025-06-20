@@ -56,6 +56,7 @@ module Element_32 = struct
   let get b i = get b (i*byte_size)
 
   let count_set_bits = Bitops.count_set_bits_32
+  let count_trailing_zeros = Bitops.count_trailing_zeros_32
 
   let of_int i =
     logand (of_int i) max_int
@@ -76,6 +77,7 @@ module Element_64 = struct
   let get b i = get b (i*byte_size)
 
   let count_set_bits = Bitops.count_set_bits_64
+  let count_trailing_zeros = Bitops.count_trailing_zeros_64
 
   let of_int i =
     logand (of_int i) max_int
@@ -674,7 +676,7 @@ module Basic_fold(Spec : Bit_ordering_spec) = struct
     for i = 1 to total_words do
       let word = ref (Element.get t i) in
       let subindex = ref 0 in
-      while not (Element.equal !word Element.zero) do
+      while Bool.not (Element.equal !word Element.zero) do
         let tail = Element.count_trailing_zeros !word in
         let subindex = !subindex + tail in
         word := Element.shift_right_logical !word (tail + 1);
