@@ -96,6 +96,9 @@ let max_length =
 let [@inline always] total_data_words ~length =
   (length + Element.bit_size - 1) lsr Element.shift
 
+let [@inline always] full_data_words ~length =
+  (length lsr Element.shift)
+
 let [@inline always] total_words ~length =
   1 + (total_data_words ~length)
 
@@ -235,27 +238,22 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
     let [@inline always] inner_f a result =
       let length = Check.length2 a result in
       let total_data_words = total_data_words ~length in
-      for i = 1 to pred total_data_words do
+      let full_data_words = full_data_words ~length in
+      for i = 1 to full_data_words do
         Element.set result i
           (f
              (Element.get a i)
           )
       done;
-      if total_data_words <> 0
+      if total_data_words > full_data_words
       then begin
         let remaining = length land Element.index_mask in
-        if remaining = 0
-        then begin
-          Element.set result total_data_words
-            (f (Element.get a total_data_words))
-        end else begin
-          let mask = Element.(sub (shift_left one remaining) one) in
-          Element.set result total_data_words
-            (Element.logand
-               mask
-               (f (Element.get a total_data_words))
-            )
-        end
+        let mask = Element.(sub (shift_left one remaining) one) in
+        Element.set result total_data_words
+          (Element.logand
+             mask
+             (f (Element.get a total_data_words))
+          )
       end
     in
     Make_result.wrap_1 inner_f
@@ -264,28 +262,23 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
     let [@inline always] inner_f a b result =
       let length = Check.length3 a b result in
       let total_data_words = total_data_words ~length in
-      for i = 1 to pred total_data_words do
+      let full_data_words = full_data_words ~length in
+      for i = 1 to full_data_words do
         Element.set result i
           (f
              (Element.get a i)
              (Element.get b i)
           )
       done;
-      if total_data_words <> 0
+      if total_data_words > full_data_words
       then begin
         let remaining = length land Element.index_mask in
-        if remaining = 0
-        then begin
-          Element.set result total_data_words
-            (f (Element.get a total_data_words) (Element.get b total_data_words))
-        end else begin
-          let mask = Element.(sub (shift_left one remaining) one) in
-          Element.set result total_data_words
-            (Element.logand
-               mask
-               (f (Element.get a total_data_words) (Element.get b total_data_words))
-            )
-        end
+        let mask = Element.(sub (shift_left one remaining) one) in
+        Element.set result total_data_words
+          (Element.logand
+             mask
+             (f (Element.get a total_data_words) (Element.get b total_data_words))
+          )
       end
     in
     Make_result.wrap_2 inner_f
