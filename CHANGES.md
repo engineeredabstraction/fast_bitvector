@@ -5,6 +5,7 @@
 - Add QCheck tests
 - Add Builder to construct bitvectors more efficiently
 - Add Documentation to most of the public API
+- Normalize unused bits to zero
 
 ## 0.1.0.1
 - Simplify append, add test
