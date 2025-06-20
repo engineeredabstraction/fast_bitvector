@@ -239,14 +239,22 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
              (Element.get a i)
           )
       done;
-      let mask =
-        Element.(shift_right_logical minus_one (length land index_mask))
-      in
-      Element.set result total_words
-        (Element.logand
-           mask
-           (f (Element.get a total_words))
-        )
+      if total_words <> 0
+      then begin
+        let remaining = length land Element.index_mask in
+        if remaining = 0
+        then begin
+          Element.set result total_words
+            (f (Element.get a total_words))
+        end else begin
+          let mask = Element.(sub (shift_left one remaining) one) in
+          Element.set result total_words
+            (Element.logand
+               mask
+               (f (Element.get a total_words))
+            )
+        end
+      end
     in
     Make_result.wrap_1 inner_f
 
@@ -261,14 +269,22 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
              (Element.get b i)
           )
       done;
-      let mask =
-        Element.(shift_right_logical minus_one (length land index_mask))
-      in
-      Element.set result total_words
-        (Element.logand
-           mask
-           (f (Element.get a total_words) (Element.get b total_words))
-        )
+      if total_words <> 0
+      then begin
+        let remaining = length land Element.index_mask in
+        if remaining = 0
+        then begin
+          Element.set result total_words
+            (f (Element.get a total_words) (Element.get b total_words))
+        end else begin
+          let mask = Element.(sub (shift_left one remaining) one) in
+          Element.set result total_words
+            (Element.logand
+               mask
+               (f (Element.get a total_words) (Element.get b total_words))
+            )
+        end
+      end
     in
     Make_result.wrap_2 inner_f
 
