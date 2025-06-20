@@ -86,8 +86,8 @@ let%test_unit "append" =
   |> QCheck.Test.check_exn
 
 
-let%test_unit "fold_set" =
-  QCheck.Test.make ~count:1000 ~name:"fold_set"
+let test_fold ~name ~folder ~rev =
+  QCheck.Test.make ~count:1000 ~name
     Arbitrary.list
     (fun l ->
        let bv = Fast_bitvector.Bit_zero_first.of_bool_list l in
@@ -98,20 +98,22 @@ let%test_unit "fold_set" =
                if b then Set.add s i else s)
        in
        let bv_fold =
-         Fast_bitvector.fold_left_set
+         folder
+           bv
            ~init:[]
            ~f:(fun acc i ->
                i :: acc)
-           bv
        in
        let set_fold =
          Set.fold
+           set
            ~init:[]
            ~f:(fun acc i ->
                i :: acc)
-           set
        in
-       if [%equal: int list] (List.rev bv_fold) (List.rev set_fold)
+       let bv_fold = List.rev bv_fold in
+       let set_fold = if rev then set_fold else List.rev set_fold in
+       if [%equal: int list] bv_fold set_fold
        then true
        else QCheck.Test.fail_reportf
            !"bv_fold: %{sexp:int list} != set_fold: %{sexp:int list}"
@@ -119,3 +121,13 @@ let%test_unit "fold_set" =
            set_fold
     )
   |> QCheck.Test.check_exn
+
+let%test_unit "fold_set" =
+  test_fold ~name:"fold_set" ~folder:Fast_bitvector.fold_set ~rev:false
+
+let%test_unit "fold_right_set" =
+  test_fold ~name:"fold_right_set" ~folder:
+    (fun bv ~init ~f ->
+       Fast_bitvector.fold_right_set
+         bv ~init ~f:(fun a b -> f b a)
+    ) ~rev:true

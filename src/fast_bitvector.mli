@@ -118,6 +118,9 @@ val fold_lefti : t -> init:'a -> f:('a -> int -> bool -> 'a) -> 'a
 val fold_left_set : t -> init:'a -> f:('a -> int -> 'a) -> 'a
 (** fold over all offsets of set bits. *)
 
+val fold_set : t -> init:'a -> f:('a -> int -> 'a) -> 'a
+(** Alias for [fold_left_set] *)
+
 val foldi : t -> init:'a -> f:('a -> int -> bool -> 'a) -> 'a
 (** Alias for [fold_lefti] *)
 
@@ -127,6 +130,9 @@ val fold_right : t -> init:'a -> f:(bool -> 'a -> 'a) -> 'a
 
 val fold_righti : t -> init:'a -> f:(int -> bool -> 'a -> 'a) -> 'a
 (** [foldi] is [fold] with offset provided. *)
+
+val fold_right_set : t -> init:'a -> f:(int -> 'a -> 'a) -> 'a
+(** fold over all offsets of set bits. *)
 
 val map : t -> f:(bool -> bool) -> t
 (** Map every bit in the vector with function [f]. *)

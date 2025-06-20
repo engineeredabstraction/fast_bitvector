@@ -11,6 +11,8 @@ let failwithf s = Printf.ksprintf failwith s
 module type Element = sig
   type t
 
+  val to_string : t -> string
+
   val bit_size : int
   val byte_size : int
   val shift : int
@@ -39,10 +41,13 @@ module type Element = sig
 
   val count_set_bits : t -> int
   val count_trailing_zeros : t -> int
+  val count_leading_zeros : t -> int
 end
 
 module Element_32 = struct
   include Int32
+
+  let to_string = Printf.sprintf "0x%08lx"
 
   let bit_size = 32
   let byte_size = 4
@@ -57,6 +62,7 @@ module Element_32 = struct
 
   let count_set_bits = Bitops.count_set_bits_32
   let count_trailing_zeros = Bitops.count_trailing_zeros_32
+  let count_leading_zeros = Bitops.count_leading_zeros_32
 
   let of_int i =
     logand (of_int i) max_int
@@ -64,6 +70,8 @@ end
 
 module Element_64 = struct
   include Int64
+
+  let to_string = Printf.sprintf "0x%016Lx"
 
   let bit_size = 64
   let byte_size = 8
@@ -78,6 +86,7 @@ module Element_64 = struct
 
   let count_set_bits = Bitops.count_set_bits_64
   let count_trailing_zeros = Bitops.count_trailing_zeros_64
+  let count_leading_zeros = Bitops.count_leading_zeros_64
 
   let of_int i =
     logand (of_int i) max_int
@@ -88,6 +97,8 @@ module Element = (val
                     then (module Element_32 : Element)
                     else (module Element_64 : Element)
                  )
+
+let _ = Element.to_string
 
 let length t =
   Element.get t 0
@@ -652,11 +663,14 @@ end
 module type Fold_ordering_spec = sig
   val get_index : length:int -> i:int -> int
   
-  type 'a fold_f
-  type 'a foldi_f
+  type ('a, 'b) fold_f
+  type ('a, 'b) foldi_f
 
-  val apply_fold_f : 'a fold_f -> bool -> 'a -> 'a
-  val apply_foldi_f : 'a foldi_f -> int -> bool -> 'a -> 'a
+  val apply_fold_f : ('a, 'b) fold_f -> 'b -> 'a -> 'a
+  val apply_foldi_f : ('a, 'b) foldi_f -> int -> 'b -> 'a -> 'a
+
+  val zeros_until_next_bit : Element.t -> int
+  val skip_next_bit : Element.t -> int -> Element.t
 
 end
 
@@ -665,22 +679,28 @@ module Fold_ordering = struct
   module Bit_zero_first = struct
     include Bit_zero_first'.Spec
 
-    type 'a fold_f = 'a -> bool -> 'a
-    type 'a foldi_f = 'a -> int -> bool -> 'a
+    type ('a, 'b) fold_f = 'a -> 'b -> 'a
+    type ('a, 'b) foldi_f = 'a -> int -> 'b -> 'a
 
     let [@inline always] apply_fold_f f b acc = f acc b
     let [@inline always] apply_foldi_f f i b acc = f acc i b
+
+    let zeros_until_next_bit e = Element.count_trailing_zeros e
+    let skip_next_bit = Element.shift_right_logical
   end
 
   (* For fold_right *)
   module Bit_zero_last = struct
     include Bit_zero_last'.Spec
 
-    type 'a fold_f = bool -> 'a -> 'a
-    type 'a foldi_f = int -> bool -> 'a -> 'a
+    type ('a, 'b) fold_f = 'b -> 'a -> 'a
+    type ('a, 'b) foldi_f = int -> 'b -> 'a -> 'a
 
     let [@inline always] apply_fold_f f b acc = f b acc
     let [@inline always] apply_foldi_f f i b acc = f i b acc
+
+    let zeros_until_next_bit e = Element.count_leading_zeros e
+    let skip_next_bit = Element.shift_left
   end
 end
 
@@ -717,23 +737,37 @@ module [@inline always] Basic_fold(Spec : Fold_ordering_spec) = struct
     let total_data_words = total_data_words ~length in
     let acc = ref init in
     for i = 1 to total_data_words do
-      let word = ref (Element.get t i) in
+      let i' = Spec.get_index ~length:total_data_words ~i:(i - 1) + 1 in
+      let word = ref (Element.get t i') in
       let subindex = ref 0 in
       while Bool.not (Element.equal !word Element.zero) do
-        let tail = Element.count_trailing_zeros !word in
-        subindex := !subindex + (1 + tail);
-        word := Element.shift_right_logical !word (tail + 1);
-        acc := f !acc ((i - 1) * Element.bit_size + !subindex - 1)
+        let tail = Spec.zeros_until_next_bit !word in
+        subindex := !subindex + tail;
+        word := Spec.skip_next_bit !word tail;
+        word := Spec.skip_next_bit !word 1;
+        let subindex' = Spec.get_index ~length:Element.bit_size ~i:!subindex in
+        let user_index = (i' - 1) * Element.bit_size + subindex' in
+        acc := Spec.apply_fold_f f user_index !acc;
+        incr subindex;
       done
     done;
     !acc
+
+end
+
+module Fold_forward = struct 
+  include Basic_fold(Fold_ordering.Bit_zero_first)
 
   let [@inline always] iter_set t ~f =
     fold_set t ~init:() ~f:(fun () i -> f i)
 end
 
-module Fold_forward = Basic_fold(Fold_ordering.Bit_zero_first)
-module Fold_backward = Basic_fold(Fold_ordering.Bit_zero_last)
+module Fold_backward = struct
+  include Basic_fold(Fold_ordering.Bit_zero_last)
+
+  let [@inline always] iter_set t ~f =
+    fold_set t ~init:() ~f:(fun i () -> f i)
+end
 
 let fold = Fold_forward.fold
 let fold_left = Fold_forward.fold
@@ -741,9 +775,7 @@ let foldi = Fold_forward.foldi
 let fold_lefti = Fold_forward.foldi
 let iter = Fold_forward.iter
 let iteri = Fold_forward.iteri
-              (*
 let fold_set = Fold_forward.fold_set
-                 *)
 let fold_left_set = Fold_forward.fold_set
 let iter_set = Fold_forward.iter_set
 
@@ -752,9 +784,7 @@ let fold_righti = Fold_backward.foldi
 let rev_iter = Fold_backward.iter
 let rev_iteri = Fold_backward.iteri
 let rev_iter_set = Fold_backward.iter_set
-                     (*
 let fold_right_set = Fold_backward.fold_set
-                        *)
 
 let map t ~f =
   (init [@inlined hint]) (length t)
