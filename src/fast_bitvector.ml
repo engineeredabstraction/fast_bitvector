@@ -233,27 +233,42 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
     let [@inline always] inner_f a result =
       let length = Check.length2 a result in
       let total_words = total_words ~length in
-      for i = 1 to total_words do
+      for i = 1 to pred total_words do
         Element.set result i
           (f
              (Element.get a i)
           )
       done;
+      let mask =
+        Element.(shift_right_logical minus_one (length land index_mask))
+      in
+      Element.set result total_words
+        (Element.logand
+           mask
+           (f (Element.get a total_words))
+        )
     in
     Make_result.wrap_1 inner_f
-
 
   let [@inline always] logop2 ~f =
     let [@inline always] inner_f a b result =
       let length = Check.length3 a b result in
       let total_words = total_words ~length in
-      for i = 1 to total_words do
+      for i = 1 to pred total_words do
         Element.set result i
           (f
              (Element.get a i)
              (Element.get b i)
           )
       done;
+      let mask =
+        Element.(shift_right_logical minus_one (length land index_mask))
+      in
+      Element.set result total_words
+        (Element.logand
+           mask
+           (f (Element.get a total_words) (Element.get b total_words))
+        )
     in
     Make_result.wrap_2 inner_f
 
