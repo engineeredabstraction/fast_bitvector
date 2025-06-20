@@ -714,16 +714,16 @@ module [@inline always] Basic_fold(Spec : Fold_ordering_spec) = struct
   (* Only consider set bits *)
   let [@inline always] fold_set t ~init ~f =
     let length = length t in
-    let total_words = total_words ~length in
+    let total_data_words = total_data_words ~length in
     let acc = ref init in
-    for i = 1 to total_words do
+    for i = 1 to total_data_words do
       let word = ref (Element.get t i) in
       let subindex = ref 0 in
       while Bool.not (Element.equal !word Element.zero) do
         let tail = Element.count_trailing_zeros !word in
-        let subindex = !subindex + tail in
+        subindex := !subindex + (1 + tail);
         word := Element.shift_right_logical !word (tail + 1);
-        acc := f !acc ((i - 1) * Element.bit_size + subindex)
+        acc := f !acc ((i - 1) * Element.bit_size + !subindex - 1)
       done
     done;
     !acc
@@ -741,6 +741,10 @@ let foldi = Fold_forward.foldi
 let fold_lefti = Fold_forward.foldi
 let iter = Fold_forward.iter
 let iteri = Fold_forward.iteri
+              (*
+let fold_set = Fold_forward.fold_set
+                 *)
+let fold_left_set = Fold_forward.fold_set
 let iter_set = Fold_forward.iter_set
 
 let fold_right = Fold_backward.fold
@@ -748,6 +752,9 @@ let fold_righti = Fold_backward.foldi
 let rev_iter = Fold_backward.iter
 let rev_iteri = Fold_backward.iteri
 let rev_iter_set = Fold_backward.iter_set
+                     (*
+let fold_right_set = Fold_backward.fold_set
+                        *)
 
 let map t ~f =
   (init [@inlined hint]) (length t)
@@ -775,9 +782,9 @@ module Builder = struct
       match rev_list with
       | [] -> ()
       | x :: xs ->
-          let current_element_bit0 = (list_len - i - 1) * Sys.int_size in
-          Unsafe.With_int.or_ ~dst:bv bv ~bit0_at:current_element_bit0 x;
-          aux bv xs ~i:(i + 1)
+        let current_element_bit0 = (list_len - i - 1) * Sys.int_size in
+        Unsafe.With_int.or_ ~dst:bv bv ~bit0_at:current_element_bit0 x;
+        aux bv xs ~i:(i + 1)
     in
     aux bv t.rev_list ~i:0;
     if t.current_index > 0

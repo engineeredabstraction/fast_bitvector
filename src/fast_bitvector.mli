@@ -115,6 +115,9 @@ val fold : t -> init:'a -> f:('a -> bool -> 'a) -> 'a
 val fold_lefti : t -> init:'a -> f:('a -> int -> bool -> 'a) -> 'a
 (** [fold_lefti] is [fold_left] with offset provided. *)
 
+val fold_left_set : t -> init:'a -> f:('a -> int -> 'a) -> 'a
+(** fold over all offsets of set bits. *)
+
 val foldi : t -> init:'a -> f:('a -> int -> bool -> 'a) -> 'a
 (** Alias for [fold_lefti] *)
 
