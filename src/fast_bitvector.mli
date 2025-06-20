@@ -187,3 +187,7 @@ module Builder : sig
   val of_seq : bool Seq.t -> t
   (** Construct build from a sequence. *)
 end
+
+module Private : sig
+  module Bitops = Bitops
+end

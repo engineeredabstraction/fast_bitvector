@@ -860,3 +860,7 @@ module Builder = struct
   let of_iter iter = add_iter (create ()) iter
   let of_seq seq = add_seq (create ()) seq
 end
+
+module Private = struct
+  module Bitops = Bitops
+end
