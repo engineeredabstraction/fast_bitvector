@@ -18,12 +18,11 @@ let ctz32_table = [|
   31; 27; 13; 23; 21; 19; 16; 7; 26; 12; 18; 6; 11; 5; 10; 9
 |]
 
-let count_trailing_zeros_32 (i : int32) : int =
-  let x' = Int32.to_int i in
-  let isolate = x' land (-x') in
-  let deBruijn = 0x077CB531 in
-  let product = (isolate * deBruijn) land 0xFFFFFFFF in
-  let index = product lsr 27 in
+let count_trailing_zeros_32 (x : int32) : int =
+  let isolate = Int32.(logand x (neg x)) in
+  let deBruijn = 0x077CB531l in
+  let product = Int32.mul isolate deBruijn in
+  let index = Int32.(to_int (shift_right_logical product 27)) in
   Array.unsafe_get ctz32_table index
 
 let ctz64_table = [|
