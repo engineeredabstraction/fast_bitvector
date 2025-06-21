@@ -13,40 +13,30 @@ let count_set_bits_32 (i : int32) : int =
   let i = logand (add i (shift_right_logical i 4)) 0x0F0F0F0Fl in
   to_int (shift_right_logical (mul i 0x01010101l) 24)
 
-let ctz32_table = [|
-  0; 1; 28; 2; 29; 14; 24; 3; 30; 22; 20; 15; 25; 17; 4; 8;
-  31; 27; 13; 23; 21; 19; 16; 7; 26; 12; 18; 6; 11; 5; 10; 9
-|]
+let ctz32_table =
+  "\000\001\028\002\029\014\024\003\030\022\020\015\025\017\004\008\031\027\013\023\021\019\016\007\026\012\018\006\011\005\010\009"
 
 let count_trailing_zeros_32 (x : int32) : int =
   let isolate = Int32.(logand x (neg x)) in
   let deBruijn = 0x077CB531l in
   let product = Int32.mul isolate deBruijn in
   let index = Int32.(to_int (shift_right_logical product 27)) in
-  Array.unsafe_get ctz32_table index
+  String.unsafe_get ctz32_table index
+  |> Char.code
 
-let ctz64_table = [|
-  63;  0; 58;  1; 59; 47; 53;  2;
-  60; 39; 48; 27; 54; 33; 42;  3;
-  61; 51; 37; 40; 49; 18; 28; 20;
-  55; 30; 34; 11; 43; 14; 22;  4;
-  62; 57; 46; 52; 38; 26; 32; 41;
-  50; 36; 17; 19; 29; 10; 13; 21;
-  56; 45; 25; 31; 35; 16;  9; 12;
-  44; 24; 15;  8; 23;  7;  6;  5
-|]
+let ctz64_table =
+ "\063\000\058\001\059\047\053\002\060\039\048\027\054\033\042\003\061\051\037\040\049\018\028\020\055\030\034\011\043\014\022\004\062\057\046\052\038\026\032\041\050\036\017\019\029\010\013\021\056\045\025\031\035\016\009\012\044\024\015\008\023\007\006\005"
 
 let count_trailing_zeros_64 (x : int64) : int =
   let isolated = Int64.(logand x (neg x)) in
   let deBruijn = 0x07EDD5E59A4E28C2L in
   let product = Int64.mul isolated deBruijn in
   let index = Int64.(to_int (shift_right_logical product 58)) in
-  Array.unsafe_get ctz64_table index
+  String.unsafe_get ctz64_table index
+  |> Char.code
 
-let clz32_table = [|
-  31; 30; 21; 29; 20; 17; 9; 28; 1; 19; 16; 14; 12; 8; 5; 27;
-  0; 22; 18; 10; 2; 15; 13; 6; 23; 11; 3; 7; 24; 4; 25; 26;
-|]
+let clz32_table =
+ "\031\030\021\029\020\017\009\028\001\019\016\014\012\008\005\027\000\022\018\010\002\015\013\006\023\011\003\007\024\004\025\026"
 
 let count_leading_zeros_32 (x : int32) : int =
   let x = Int32.logor x (Int32.shift_right_logical x 1) in
@@ -58,14 +48,11 @@ let count_leading_zeros_32 (x : int32) : int =
   let deBruijn = 0x07C4ACDDl in
   let product = Int32.mul y deBruijn in
   let index = Int32.to_int (Int32.shift_right_logical product 27) in
-  Array.unsafe_get clz32_table index
+  String.unsafe_get clz32_table index
+  |> Char.code
 
-let clz64_table = [|
-  63; 62; 15; 61; 6; 14; 35; 60; 2; 5; 13; 21; 25; 34; 46; 59;
-  1; 8; 4; 27; 10; 12; 20; 41; 18; 24; 30; 33; 39; 45; 51; 58;
-  0; 16; 7; 36; 3; 22; 26; 47; 9; 28; 11; 42; 19; 31; 40; 52;
-  17; 37; 23; 48; 29; 43; 32; 53; 38; 49; 44; 54; 50; 55; 56; 57;
-|]
+let clz64_table =
+ "\063\062\015\061\006\014\035\060\002\005\013\021\025\034\046\059\001\008\004\027\010\012\020\041\018\024\030\033\039\045\051\058\000\016\007\036\003\022\026\047\009\028\011\042\019\031\040\052\017\037\023\048\029\043\032\053\038\049\044\054\050\055\056\057"
 
 let count_leading_zeros_64 (x : int64) : int =
   let x = Int64.logor x (Int64.shift_right_logical x 1) in
@@ -78,4 +65,5 @@ let count_leading_zeros_64 (x : int64) : int =
   let deBruijn = 0x03F79D71B4CB0A89L in
   let product = Int64.mul y deBruijn in
   let index = Int64.to_int (Int64.shift_right_logical product 58) in
-  Array.unsafe_get clz64_table index
+  String.unsafe_get clz64_table index
+  |> Char.code
