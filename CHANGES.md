@@ -8,6 +8,8 @@
     - QCheck tests
     - Builder to construct bitvectors more efficiently
     - Documentation to most of the public API
+- Internals:
+    - Normalize unused bits to zero
 
 ## 0.1.0.1
 - Simplify append, add test
