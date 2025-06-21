@@ -135,11 +135,21 @@ let clear_all t =
 
 let randomize t =
   let length = length t in
-  let total_words = total_words ~length in
-  for i = 1 to total_words do
+  let full_data_words = full_data_words ~length in
+  let total_data_words = total_data_words ~length in
+  for i = 1 to full_data_words do
     Element.set t i
       (Element.random ())
-  done
+  done;
+  if total_data_words > full_data_words
+  then begin
+    let mask = Element.(sub (shift_left one (length mod bit_size)) one) in
+    Element.set t total_data_words
+      (Element.logand
+         mask
+         (Element.random ())
+      )
+  end
 
 external (&&&) : bool -> bool -> bool = "%andint"
 external (|||) : bool -> bool -> bool = "%orint"
