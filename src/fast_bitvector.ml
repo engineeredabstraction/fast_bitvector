@@ -18,6 +18,8 @@ module type Element = sig
 
   val equal : t -> t -> bool
 
+  val random : unit -> t
+
   val to_int : t -> int
   val of_int : int -> t
 
@@ -48,6 +50,8 @@ module Element_32 = struct
   let shift = 5
   let index_mask = 31
 
+  let random = Random.bits32
+
   external get : bytes -> int -> t = "%caml_bytes_get32u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set32u"
 
@@ -67,6 +71,8 @@ module Element_64 = struct
   let byte_size = 8
   let shift = 6
   let index_mask = 63
+
+  let random = Random.bits64
 
   external get : bytes -> int -> t = "%caml_bytes_get64u"
   external set : bytes -> int -> t -> unit = "%caml_bytes_set64u"
@@ -126,6 +132,24 @@ let set_all t =
 
 let clear_all t =
   loop_set t Element.zero
+
+let randomize t =
+  let length = length t in
+  let full_data_words = full_data_words ~length in
+  let total_data_words = total_data_words ~length in
+  for i = 1 to full_data_words do
+    Element.set t i
+      (Element.random ())
+  done;
+  if total_data_words > full_data_words
+  then begin
+    let mask = Element.(sub (shift_left one (length mod bit_size)) one) in
+    Element.set t total_data_words
+      (Element.logand
+         mask
+         (Element.random ())
+      )
+  end
 
 external (&&&) : bool -> bool -> bool = "%andint"
 external (|||) : bool -> bool -> bool = "%orint"

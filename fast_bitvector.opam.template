@@ -8,4 +8,5 @@ depends: [
   "ppx_jane" {with-test}
   "odoc" {with-doc}
   "qcheck-core" {with-test}
+  "ppx_optcomp" {with-test}
 ]
