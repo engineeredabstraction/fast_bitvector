@@ -99,14 +99,19 @@ let length t =
 let max_length =
   ((Sys.max_string_length / Element.byte_size) - 1) * Element.bit_size
 
-let [@inline always] total_words ~length =
+let [@inline always] total_data_words ~length =
   (length + Element.bit_size - 1) lsr Element.shift
+
+let [@inline always] full_data_words ~length =
+  (length lsr Element.shift)
+
+let [@inline always] total_words ~length =
+  1 + (total_data_words ~length)
 
 let create_internal ~new_length ~init =
   if new_length > max_length
   then failwithf "length %d exceeds maximum length %d" new_length max_length;
-  let total_data_words = (new_length + Element.bit_size - 1) / Element.bit_size in
-  let total_words = total_data_words + 1 in
+  let total_words = total_words ~length:new_length in
   let t = Bytes.make (total_words * Element.byte_size) init in
   Element.set t 0 (Element.of_int new_length);
   assert (length t == new_length);
@@ -116,8 +121,8 @@ let create ~len:new_length = create_internal ~new_length ~init:'\000'
 
 let [@inline always] loop_set result value =
   let length = length result in
-  let total_words = total_words ~length in
-  for i = 1 to total_words do
+  let total_data_words = total_data_words ~length in
+  for i = 1 to total_data_words do
     Element.set result i
       value
   done
@@ -141,9 +146,9 @@ external (|||) : bool -> bool -> bool = "%orint"
 
 let [@inline always] foldop1 ~init ~f ~final a =
   let length = length a in
-  let total_words = total_words ~length in
+  let total_data_words = total_data_words ~length in
   let acc = ref init in
-  for i = 1 to pred total_words do
+  for i = 1 to pred total_data_words do
     acc :=
       (f [@inlined hint])
         !acc
@@ -154,12 +159,12 @@ let [@inline always] foldop1 ~init ~f ~final a =
   then begin
     (f [@inlined hint])
       !acc
-      (Element.get a total_words)
+      (Element.get a total_data_words)
   end else begin
     let mask = Element.(sub (shift_left one remaining) one) in
     (f [@inlined hint])
       !acc
-      (final ~mask (Element.get a total_words))
+      (final ~mask (Element.get a total_data_words))
   end
 
 let popcount t =
@@ -246,36 +251,57 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
   let [@inline always] logop1 ~f =
     let [@inline always] inner_f a result =
       let length = Check.length2 a result in
-      let total_words = total_words ~length in
-      for i = 1 to total_words do
+      let total_data_words = total_data_words ~length in
+      let full_data_words = full_data_words ~length in
+      for i = 1 to full_data_words do
         Element.set result i
           (f
              (Element.get a i)
           )
       done;
+      if total_data_words > full_data_words
+      then begin
+        let remaining = length land Element.index_mask in
+        let mask = Element.(sub (shift_left one remaining) one) in
+        Element.set result total_data_words
+          (Element.logand
+             mask
+             (f (Element.get a total_data_words))
+          )
+      end
     in
     Make_result.wrap_1 inner_f
-
 
   let [@inline always] logop2 ~f =
     let [@inline always] inner_f a b result =
       let length = Check.length3 a b result in
-      let total_words = total_words ~length in
-      for i = 1 to total_words do
+      let total_data_words = total_data_words ~length in
+      let full_data_words = full_data_words ~length in
+      for i = 1 to full_data_words do
         Element.set result i
           (f
              (Element.get a i)
              (Element.get b i)
           )
       done;
+      if total_data_words > full_data_words
+      then begin
+        let remaining = length land Element.index_mask in
+        let mask = Element.(sub (shift_left one remaining) one) in
+        Element.set result total_data_words
+          (Element.logand
+             mask
+             (f (Element.get a total_data_words) (Element.get b total_data_words))
+          )
+      end
     in
     Make_result.wrap_2 inner_f
 
   let [@inline always] foldop2 ~init ~f ~final a b =
     let length = Check.length2 a b in
-    let total_words = total_words ~length in
+    let total_data_words = total_data_words ~length in
     let acc = ref init in
-    for i = 1 to pred total_words do
+    for i = 1 to pred total_data_words do
       acc :=
         (f [@inlined hint])
           !acc
@@ -286,8 +312,28 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
     let mask = Element.sub (Element.shift_left Element.one remaining) Element.one in
     (f [@inlined hint])
       !acc
+      (final ~mask (Element.get a total_data_words))
+      (final ~mask (Element.get b total_data_words))
+
+  let [@inline always] foldop3 ~init ~f ~final a b c =
+    let length = Check.length3 a b c in
+    let total_words = total_words ~length in
+    let acc = ref init in
+    for i = 1 to pred total_words do
+      acc :=
+        (f [@inlined hint])
+          !acc
+          (Element.get a i)
+          (Element.get b i)
+          (Element.get c i)
+    done;
+    let remaining = length land (Element.bit_size - 1) in
+    let mask = Element.sub (Element.shift_left Element.one remaining) Element.one in
+    (f [@inlined hint])
+      !acc
       (final ~mask (Element.get a total_words))
       (final ~mask (Element.get b total_words))
+      (final ~mask (Element.get c total_words))
 
   let [@inline always] get t i =
     Check.index t i;
@@ -335,8 +381,6 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
     Element.set t index v'
 
   let equal a b =
-    (length a = length b)
-    &&
     foldop2 a b
       ~init:true
       ~f:(fun acc a b ->
@@ -346,25 +390,72 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
         )
       ~final:(fun ~mask a -> Element.logand mask a)
 
+  let equal_modulo ~modulo a b =
+    foldop3 modulo a b
+      ~init:true
+      ~f:(fun acc modulo a b ->
+          acc
+          &&&
+          Element.(equal zero (logand modulo (logxor a b))))
+      ~final:(fun ~mask a -> Element.logand mask a)
+
   let [@inline always] not a = logop1 ~f:Element.lognot a
 
   let [@inline always] and_ a b = logop2 ~f:Element.logand a b
 
+  let [@inline always] nand a b =
+    logop2 ~f:(fun a b ->
+        Element.lognot (Element.logand a b)
+      ) a b
+
   let [@inline always] or_ a b = logop2 ~f:Element.logor a b
 
+  let [@inline always] nor a b =
+    logop2 ~f:(fun a b ->
+        Element.lognot (Element.logor a b)
+      ) a b
+
   let [@inline always] xor a b = logop2 ~f:Element.logxor a b
+
+  let [@inline always] xnor a b =
+    logop2 ~f:(fun a b ->
+        Element.lognot (Element.logxor a b)
+      ) a b
 
   module Set = struct
     let mem = get
 
-    let intersect = and_
+    let inter = and_
     let complement = not
-    let symmetric_difference = xor
+    let symmetric_diff = xor
+    let union = or_
+    let cardinality = popcount
 
-    let [@inline always] difference a b =
+    let [@inline always] diff a b =
       logop2 ~f:(fun a b ->
           Element.logand a (Element.lognot b)
         ) a b
+
+    let are_disjoint a b =
+      foldop2 a b
+        ~init:true
+        ~f:(fun acc a b ->
+            acc
+            &&&
+            (Element.equal Element.zero (Element.logand a b))
+          )
+        ~final:(fun ~mask a -> Element.logand mask a)
+
+    let is_subset ~of_ a =
+      foldop2 a of_
+        ~init:true
+        ~f:(fun acc a of_ ->
+            acc
+            &&&
+            (Element.equal Element.zero (Element.logand a (Element.lognot of_)))
+          )
+        ~final:(fun ~mask a -> Element.logand mask a)
+
   end
 
   module With_int = struct
@@ -453,6 +544,14 @@ let equal a b =
   let lb = length b in
   la = lb && Unsafe.equal a b
 
+let equal_modulo ~modulo a b =
+  let la = length a in
+  let lb = length b in
+  let lm = length modulo in
+  if la = lb && la = lm
+  then Unsafe.equal_modulo ~modulo a b
+  else false
+
 let init new_length ~f =
   let t = create ~len:new_length in
   for i = 0 to new_length - 1 do
@@ -534,7 +633,7 @@ let append a b =
   let length_a = length a in
   let length_b = length b in
   let length = length_a + length_b in
-  let words_a = total_words ~length:length_a in
+  let words_a = total_data_words ~length:length_a in
   let t = create ~len:length in
   for i = 1 to words_a do
     Element.set t i (Element.get a i)
