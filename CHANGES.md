@@ -9,6 +9,7 @@
     - QCheck tests
     - Builder to construct bitvectors more efficiently
     - Documentation to most of the public API
+    - `randomize`
 - Internals:
     - Normalize unused bits to zero
 

@@ -9,7 +9,7 @@
 (library
  (name test_fast_bitvector_qcheck)
  (libraries fast_bitvector expect_test_helpers_core qcheck-core)
- (preprocess (pps ppx_jane))
+ (preprocess (pps ppx_jane ppx_optcomp))
  (inline_tests)
  (modules test_quick)
  )

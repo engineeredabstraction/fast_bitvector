@@ -117,6 +117,9 @@ val set_all : t -> unit
 val clear_all : t -> unit
 (** Set all bits to zero. *)
 
+val randomize : t -> unit
+(** Set all bits to random values. *)
+
 val is_empty : t -> bool
 (** Return [true] whenever all bits are zero. *)
 
