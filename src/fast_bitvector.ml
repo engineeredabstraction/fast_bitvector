@@ -315,6 +315,26 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
       (final ~mask (Element.get a total_data_words))
       (final ~mask (Element.get b total_data_words))
 
+  let [@inline always] foldop3 ~init ~f ~final a b c =
+    let length = Check.length3 a b c in
+    let total_words = total_words ~length in
+    let acc = ref init in
+    for i = 1 to pred total_words do
+      acc :=
+        (f [@inlined hint])
+          !acc
+          (Element.get a i)
+          (Element.get b i)
+          (Element.get c i)
+    done;
+    let remaining = length land (Element.bit_size - 1) in
+    let mask = Element.sub (Element.shift_left Element.one remaining) Element.one in
+    (f [@inlined hint])
+      !acc
+      (final ~mask (Element.get a total_words))
+      (final ~mask (Element.get b total_words))
+      (final ~mask (Element.get c total_words))
+
   let [@inline always] get t i =
     Check.index t i;
     let index = 1 + (i lsr Element.shift) in
@@ -361,8 +381,6 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
     Element.set t index v'
 
   let equal a b =
-    (length a = length b)
-    &&
     foldop2 a b
       ~init:true
       ~f:(fun acc a b ->
@@ -372,25 +390,72 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
         )
       ~final:(fun ~mask a -> Element.logand mask a)
 
+  let equal_modulo ~modulo a b =
+    foldop3 modulo a b
+      ~init:true
+      ~f:(fun acc modulo a b ->
+          acc
+          &&&
+          Element.(equal zero (logand modulo (logxor a b))))
+      ~final:(fun ~mask a -> Element.logand mask a)
+
   let [@inline always] not a = logop1 ~f:Element.lognot a
 
   let [@inline always] and_ a b = logop2 ~f:Element.logand a b
 
+  let [@inline always] nand a b =
+    logop2 ~f:(fun a b ->
+        Element.lognot (Element.logand a b)
+      ) a b
+
   let [@inline always] or_ a b = logop2 ~f:Element.logor a b
 
+  let [@inline always] nor a b =
+    logop2 ~f:(fun a b ->
+        Element.lognot (Element.logor a b)
+      ) a b
+
   let [@inline always] xor a b = logop2 ~f:Element.logxor a b
+
+  let [@inline always] xnor a b =
+    logop2 ~f:(fun a b ->
+        Element.lognot (Element.logxor a b)
+      ) a b
 
   module Set = struct
     let mem = get
 
-    let intersect = and_
+    let inter = and_
     let complement = not
-    let symmetric_difference = xor
+    let symmetric_diff = xor
+    let union = or_
+    let cardinality = popcount
 
-    let [@inline always] difference a b =
+    let [@inline always] diff a b =
       logop2 ~f:(fun a b ->
           Element.logand a (Element.lognot b)
         ) a b
+
+    let are_disjoint a b =
+      foldop2 a b
+        ~init:true
+        ~f:(fun acc a b ->
+            acc
+            &&&
+            (Element.equal Element.zero (Element.logand a b))
+          )
+        ~final:(fun ~mask a -> Element.logand mask a)
+
+    let is_subset ~of_ a =
+      foldop2 a of_
+        ~init:true
+        ~f:(fun acc a of_ ->
+            acc
+            &&&
+            (Element.equal Element.zero (Element.logand a (Element.lognot of_)))
+          )
+        ~final:(fun ~mask a -> Element.logand mask a)
+
   end
 
   module With_int = struct
@@ -478,6 +543,14 @@ let equal a b =
   let la = length a in
   let lb = length b in
   la = lb && Unsafe.equal a b
+
+let equal_modulo ~modulo a b =
+  let la = length a in
+  let lb = length b in
+  let lm = length modulo in
+  if la = lb && la = lm
+  then Unsafe.equal_modulo ~modulo a b
+  else false
 
 let init new_length ~f =
   let t = create ~len:new_length in

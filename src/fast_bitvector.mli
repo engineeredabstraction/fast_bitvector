@@ -23,28 +23,48 @@ module type Ops :=
     val get : t -> int -> bool
 
     val equal : t -> t -> bool
+    (** Compare two bitvectors for equality. *)
+
+    val equal_modulo : modulo:t -> t -> t -> bool
+    (** Test whether two bitvectors are equal in the positions set in [modulo] *)
 
     val not : t -> with_result
     val and_ : t -> t -> with_result
+    val nand : t -> t -> with_result
     val or_ : t -> t -> with_result
+    val nor : t -> t -> with_result
     val xor : t -> t -> with_result
+    val xnor : t -> t -> with_result
 
     module Set : sig
       val mem : t -> int -> bool
       (** [mem v i] checks whenever the bit with offset [i] is set to one. *)
 
-      val intersect : t -> t -> with_result
-      (** [intersect x y] returns the elements that are in both [x] and [y] *)
+      val inter : t -> t -> with_result
+      (** [inter x y] returns the elements that are in both [x] and [y] *)
 
       val complement : t -> with_result
       (** [complement x] returns bitwise negation of [x] *)
 
-      val symmetric_difference : t -> t -> with_result
-      (** [symmetric_difference x y] returns the elements that are in [x] or
+      val symmetric_diff : t -> t -> with_result
+      (** [symmetric_diff x y] returns the elements that are in [x] or
           [y] but not both. *)
 
-      val difference : t -> t -> with_result
-      (** [difference x y] returns the elements in [x] that are not in [y] *)
+      val diff : t -> t -> with_result
+      (** [diff x y] returns the elements in [x] that are not in [y] *)
+
+      val union : t -> t -> with_result
+      (** [union x y] returns the elements that are in [x] or [y] *)
+
+      val are_disjoint : t -> t -> bool
+      (** Test if two sets are disjoint.*)
+
+      val is_subset : of_:t -> t -> bool
+      (** [subset s1 ~of_] tests whether the bitvector [s1] is a subset of the
+          bitvector [of_]. *)
+
+      val cardinality : t -> int
+      (** The number of elements in the set *)
     end
   end
 
