@@ -1,7 +1,5 @@
 
 ## Development
-- More efficient create
-- Compatibility with multiple versions of ocaml_intrinsics_kernel
 - Added:
     - `union`, `is_subset`, `are_disjoint` and `equal_modulo` to complete set operations
     - `xnor`, `nor`, `nand`
@@ -12,6 +10,8 @@
     - `randomize`
 - Internals:
     - Normalize unused bits to zero
+    - More efficient create
+    - Compatibility with multiple versions of ocaml_intrinsics_kernel
 
 ## 0.1.0.1
 - Simplify append, add test
