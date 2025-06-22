@@ -1,5 +1,5 @@
 
-## Development
+## 0.1.2
 - Added:
     - `union`, `is_subset`, `are_disjoint` and `equal_modulo` to complete set operations
     - `xnor`, `nor`, `nand`
