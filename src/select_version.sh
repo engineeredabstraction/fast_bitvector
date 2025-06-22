@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 CUTOFF_VERSION=$1
 PRE_VERSION_FILE=$2

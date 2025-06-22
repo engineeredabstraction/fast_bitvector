@@ -1,4 +1,7 @@
 
+## 0.1.2.2
+- Use /bin/sh for scripts
+
 ## 0.1.2.1
 - Build fixes
 
