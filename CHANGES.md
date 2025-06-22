@@ -5,6 +5,7 @@
 - Added:
     - `union`, `is_subset`, `are_disjoint` and `equal_modulo` to complete set operations
     - `xnor`, `nor`, `nand`
+    - `(rev_)iter`, `(rev_)iteri` and `(rev_)iter_set`, `fold_left(i)` and `fold_right(i)`
     - QCheck tests
     - Builder to construct bitvectors more efficiently
     - Documentation to most of the public API
