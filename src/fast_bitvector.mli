@@ -76,6 +76,9 @@ include Ops
 (** [dst] specifies the destination bitvector of the operation, for inplace operations,
     specify one of the operands as [dst] `*)
 
+module Relaxed : Ops
+  with type with_result := dst:t -> unit
+
 module Allocate : sig
   module Unsafe : Ops
     with type with_result := t
