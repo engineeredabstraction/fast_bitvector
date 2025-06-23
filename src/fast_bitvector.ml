@@ -216,6 +216,14 @@ module type Check = sig
   val length3 : t -> t -> t -> int
 end
 
+module type Getter = sig
+  val get : t -> int -> Element.t
+end
+
+module Get_default = struct
+  let get = Element.get
+end
+
 module type Make_result = sig
   type t' := t
 
@@ -271,7 +279,7 @@ module Allocate_result = struct
       res_bv
 end
 
-module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
+module [@inline always] Ops(Check : Check)(Make_result : Make_result)(Get : Getter) = struct
   let [@inline always] logop1 ~f =
     let [@inline always] inner_f a result =
       let length = Check.length2 a result in
@@ -280,7 +288,7 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
       for i = 1 to full_data_words do
         Element.set result i
           (f
-             (Element.get a i)
+             (Get.get a i)
           )
       done;
       if total_data_words > full_data_words
@@ -290,7 +298,7 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
         Element.set result total_data_words
           (Element.logand
              mask
-             (f (Element.get a total_data_words))
+             (f (Get.get a total_data_words))
           )
       end
     in
@@ -304,8 +312,8 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
       for i = 1 to full_data_words do
         Element.set result i
           (f
-             (Element.get a i)
-             (Element.get b i)
+             (Get.get a i)
+             (Get.get b i)
           )
       done;
       if total_data_words > full_data_words
@@ -315,7 +323,7 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
         Element.set result total_data_words
           (Element.logand
              mask
-             (f (Element.get a total_data_words) (Element.get b total_data_words))
+             (f (Get.get a total_data_words) (Get.get b total_data_words))
           )
       end
     in
@@ -329,15 +337,15 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
       acc :=
         (f [@inlined hint])
           !acc
-          (Element.get a i)
-          (Element.get b i)
+          (Get.get a i)
+          (Get.get b i)
     done;
     let remaining = length land (Element.bit_size - 1) in
     let mask = Element.sub (Element.shift_left Element.one remaining) Element.one in
     (f [@inlined hint])
       !acc
-      (final ~mask (Element.get a total_data_words))
-      (final ~mask (Element.get b total_data_words))
+      (final ~mask (Get.get a total_data_words))
+      (final ~mask (Get.get b total_data_words))
 
   let [@inline always] foldop3 ~init ~f ~final a b c =
     let length = Check.length3 a b c in
@@ -347,23 +355,23 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
       acc :=
         (f [@inlined hint])
           !acc
-          (Element.get a i)
-          (Element.get b i)
-          (Element.get c i)
+          (Get.get a i)
+          (Get.get b i)
+          (Get.get c i)
     done;
     let remaining = length land (Element.bit_size - 1) in
     let mask = Element.sub (Element.shift_left Element.one remaining) Element.one in
     (f [@inlined hint])
       !acc
-      (final ~mask (Element.get a total_words))
-      (final ~mask (Element.get b total_words))
-      (final ~mask (Element.get c total_words))
+      (final ~mask (Get.get a total_words))
+      (final ~mask (Get.get b total_words))
+      (final ~mask (Get.get c total_words))
 
   let [@inline always] get t i =
     Check.index t i;
     let index = 1 + (i lsr Element.shift) in
     let subindex = i land (Element.bit_size - 1) in
-    let v = Element.get t index in
+    let v = Get.get t index in
     Element.logand
       (Element.shift_right_logical v subindex)
       Element.one
@@ -374,7 +382,7 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
     Check.index t i;
     let index = 1 + (i lsr Element.shift) in
     let subindex = i land (Element.bit_size - 1) in
-    let v = Element.get t index in
+    let v = Get.get t index in
     let v' =
       Element.logor v (Element.shift_left Element.one subindex)
     in
@@ -385,7 +393,7 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
     let b = Element.of_int ((Obj.magic : bool -> int) b) in
     let index = 1 + (i lsr Element.shift) in
     let subindex = i land (Element.bit_size - 1) in
-    let v = Element.get t index in
+    let v = Get.get t index in
     let mask = Element.lognot (Element.shift_left Element.one subindex) in
     let v' =
       Element.logor
@@ -398,7 +406,7 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
     Check.index t i;
     let index = 1 + (i lsr Element.shift) in
     let subindex = i land (Element.bit_size - 1) in
-    let v = Element.get t index in
+    let v = Get.get t index in
     let v' =
       Element.logand v (Element.lognot (Element.shift_left Element.one subindex))
     in
@@ -500,14 +508,14 @@ module [@inline always] Ops(Check : Check)(Make_result : Make_result) = struct
           let bits_in_elementN = element0_shift_left - excess_bits in
           Sys.int_size - bits_in_elementN
         in
-        let v = Element.get a bit0_element_index in
+        let v = Get.get a bit0_element_index in
         let v' =
           Element.logor v (Element.shift_left b_el element0_shift_left)
         in
         Element.set result bit0_element_index v';
         if bit0_element_index <> bitN_element_index && should_set_N
         then begin
-          let v = Element.get a bitN_element_index in
+          let v = Get.get a bitN_element_index in
           let v' =
             Element.logor v (Element.shift_right_logical b_el elementN_shift_right)
           in
@@ -553,14 +561,14 @@ module Check_all = struct
     la
 end
 
-module Unsafe = Ops(Check_none)(Explicit_result)
+module Unsafe = Ops(Check_none)(Explicit_result)(Get_default)
 
-include Ops(Check_all)(Explicit_result)
+include Ops(Check_all)(Explicit_result)(Get_default)
 
 module Allocate = struct
-  module Unsafe = Ops(Check_none)(Allocate_result)
+  module Unsafe = Ops(Check_none)(Allocate_result)(Get_default)
 
-  include Ops(Check_all)(Allocate_result)
+  include Ops(Check_all)(Allocate_result)(Get_default)
 end
 
 let equal a b =
