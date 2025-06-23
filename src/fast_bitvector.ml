@@ -569,6 +569,13 @@ module Check_all = struct
     la
 end
 
+module Check_relaxed = struct
+  include Check_all
+
+  (* CR smuenzel: update *)
+
+end
+
 module Unsafe = Ops(Check_none)(Explicit_result)(Get_default)
 
 include Ops(Check_all)(Explicit_result)(Get_default)
@@ -580,7 +587,7 @@ module Allocate = struct
 end
 
 module Relaxed = struct
-  include Ops(Check_all)(Explicit_result)(Get_relaxed)
+  include Ops(Check_relaxed)(Explicit_result)(Get_relaxed)
 end
 
 let equal a b =
