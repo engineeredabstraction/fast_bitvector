@@ -224,6 +224,14 @@ module Get_default = struct
   let get = Element.get
 end
 
+module Get_relaxed = struct
+  let get t i =
+    let length = length t in
+    if i >= total_words ~length
+    then Element.zero
+    else Element.get t i
+end
+
 module type Make_result = sig
   type t' := t
 
@@ -569,6 +577,10 @@ module Allocate = struct
   module Unsafe = Ops(Check_none)(Allocate_result)(Get_default)
 
   include Ops(Check_all)(Allocate_result)(Get_default)
+end
+
+module Relaxed = struct
+  include Ops(Check_all)(Explicit_result)(Get_relaxed)
 end
 
 let equal a b =
